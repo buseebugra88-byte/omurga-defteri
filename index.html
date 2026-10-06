@@ -1,4 +1,4 @@
-<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Omurga Rehabilitasyon Defteri</title><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:#F2F4F3}img{max-width:100%}[hidden]{display:none!important}</style></head><body><script>window.__LOCAL=(function(){
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Prof. Dr. Sevil Bilgin</title><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:#F2F4F3}img{max-width:100%}[hidden]{display:none!important}</style></head><body><script>window.__LOCAL=(function(){
   var KEY="omurga-defteri-veri"; var store={};
   try{ store=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ store={}; }
   var subs=[];
@@ -63,7 +63,7 @@
   --bg:#F2F4F3; --surface:#FFFFFF; --sunk:#E9EDEB; --ink:#16212A; --muted:#5A676E; --line:#D6DDDA;
   --accent:#26407A; --accent-ink:#FFFFFF; --accent-soft:#E3E8F3;
   --lomber:#9A3B26; --lomber-soft:#F4E5E0; --boyun:#3E4E9E; --boyun-soft:#E5E8F6;
-  --good:#2C7A4D; --good-soft:#E0F0E6; --warn:#9A6210; --warn-soft:#F6EBD8; --bad:#A3332B;
+  --good:#2C7A4D; --kongre:#7A4C93; --toplanti:#1F7A80; --good-soft:#E0F0E6; --warn:#9A6210; --warn-soft:#F6EBD8; --bad:#A3332B;
   --f-display:"Instrument Serif", Georgia, "Times New Roman", serif;
   --f-body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-data:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -73,12 +73,12 @@
   --bg:#10161A; --surface:#172026; --sunk:#1D272E; --ink:#E4E9EB; --muted:#94A1A8; --line:#2A353C;
   --accent:#A3B7EC; --accent-ink:#10161A; --accent-soft:#222D46;
   --lomber:#E3907A; --lomber-soft:#3A2520; --boyun:#A7B1EE; --boyun-soft:#252A45;
-  --good:#6FC592; --good-soft:#1C3326; --warn:#E2AB52; --warn-soft:#3A2E18; --bad:#EE8A80; color-scheme:dark;}}
+  --good:#6FC592; --kongre:#C39BD8; --toplanti:#6FC7CC; --good-soft:#1C3326; --warn:#E2AB52; --warn-soft:#3A2E18; --bad:#EE8A80; color-scheme:dark;}}
 :root[data-theme="dark"]{
   --bg:#10161A; --surface:#172026; --sunk:#1D272E; --ink:#E4E9EB; --muted:#94A1A8; --line:#2A353C;
   --accent:#A3B7EC; --accent-ink:#10161A; --accent-soft:#222D46;
   --lomber:#E3907A; --lomber-soft:#3A2520; --boyun:#A7B1EE; --boyun-soft:#252A45;
-  --good:#6FC592; --good-soft:#1C3326; --warn:#E2AB52; --warn-soft:#3A2E18; --bad:#EE8A80; color-scheme:dark;}
+  --good:#6FC592; --kongre:#C39BD8; --toplanti:#6FC7CC; --good-soft:#1C3326; --warn:#E2AB52; --warn-soft:#3A2E18; --bad:#EE8A80; color-scheme:dark;}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -134,6 +134,57 @@ main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
 .kpis b{color:var(--ink);font-size:17px;font-weight:500}
 .agrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;margin-top:16px}
 .agrid .panel.quiet{background:var(--bg)}
+.cal{padding:14px}
+.calbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-bottom:12px}
+.calnav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.calnav .btn{padding:6px 11px}
+.callabel{font-family:var(--f-display);font-size:22px;margin-left:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:var(--surface);border:0;padding:6px 12px;cursor:pointer;font-weight:500;font-size:13.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.wgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.wd{border-left:1px solid var(--line);min-height:190px;display:flex;flex-direction:column;min-width:0;background:var(--surface)}
+.wd:first-child{border-left:0}
+.wd.wknd{background:var(--bg)}
+.wd.past .wl{opacity:.6}
+.wh{display:flex;align-items:baseline;gap:6px;padding:8px 8px 6px;border-bottom:1px solid var(--line)}
+.wn{font-size:12px;color:var(--muted);text-transform:capitalize}
+.wdn{font-size:18px}
+.wd.today .wdn{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 7px}
+.wadd{margin-left:auto;background:none;border:1px solid transparent;border-radius:4px;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px}
+.wadd:hover,.wd:hover .wadd{border-color:var(--line);color:var(--ink)}
+.wl{display:flex;flex-direction:column;gap:4px;padding:6px}
+.wempty{color:var(--line);font-size:13px;padding:2px}
+.chipev{--c:var(--muted);display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;text-align:left;border:0;border-radius:5px;padding:5px 7px;cursor:pointer;background:color-mix(in srgb,var(--c) 13%,var(--surface));color:var(--ink);font-size:12.5px;line-height:1.3;min-width:0;width:100%}
+.chipev:hover{background:color-mix(in srgb,var(--c) 22%,var(--surface))}
+.chipev .cd,.legend .cd{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none;align-self:center}
+.chipev .ct{color:var(--muted);font-size:11.5px}
+.chipev .cl{font-weight:600;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 60px}
+.chipev .cs{flex-basis:100%;color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.k-randevu{--c:var(--accent)} .k-ogrenci{--c:var(--warn)} .k-toplanti{--c:var(--toplanti)} .k-seminer{--c:var(--good)} .k-ders{--c:var(--lomber)}
+.k-kongre{--c:var(--kongre)} .k-juri{--c:var(--bad)} .k-kisisel{--c:var(--muted)} .k-diger{--c:var(--muted)} .k-klinik{--c:var(--muted)}
+.chipev.k-klinik{background:transparent;border:1px dashed var(--line);font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--muted)}
+.legend>span{display:inline-flex;align-items:center;gap:5px}
+.mhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:0 0 4px}
+.mhead span{padding-left:6px}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.mc{border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-height:96px;padding:4px;display:flex;flex-direction:column;gap:3px;min-width:0;background:var(--surface)}
+.mc.out{background:var(--bg)} .mc.out .mday{color:var(--line)}
+.mday{align-self:flex-start;background:none;border:0;font-family:var(--f-data);font-size:13px;cursor:pointer;color:var(--ink);padding:1px 5px;border-radius:999px}
+.mday:hover{background:var(--sunk)}
+.mc.today .mday{background:var(--accent);color:var(--accent-ink)}
+.mc .chipev{padding:3px 5px;font-size:11.5px}
+.mc .chipev .cl{white-space:nowrap}
+.more{background:none;border:0;color:var(--muted);font-size:11.5px;text-align:left;cursor:pointer;padding:0 5px}
+.agenda li .chipev{width:auto;max-width:100%}
+@media (max-width:520px){ .agenda li.q3{grid-template-columns:auto minmax(0,1fr)} .agenda li.q3 .delta{grid-column:1/-1} }
+@media (max-width:760px){
+  .wgrid{grid-template-columns:minmax(0,1fr)} .wd{border-left:0;border-top:1px solid var(--line);min-height:0} .wd:first-child{border-top:0}
+  .wh{border-bottom:0;padding-bottom:2px} .wl{flex-direction:row;flex-wrap:wrap;padding-top:0} .wl .chipev{width:auto;max-width:100%}
+  .wd.past{display:none} .wd.past.today{display:flex}
+  .mc{min-height:56px} .mc .chipev .cl,.mc .chipev .ct{display:none} .mc .chipev{width:auto;padding:4px} .mc{flex-direction:row;flex-wrap:wrap;align-content:flex-start} .mday{flex-basis:100%}
+}
 .footlinks{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:20px;padding-top:12px;border-top:1px solid var(--line)}
 .footlinks .rowbtn{color:var(--muted);padding-left:0}
 .agenda{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
@@ -299,7 +350,7 @@ textarea.csv{width:100%;height:160px;font-family:var(--f-data);font-size:12px;bo
 </style>
 
 <header class="top"><div class="top-in">
-  <div class="brand"><h1>Omurga <i>Rehabilitasyon</i> Defteri</h1><small>Prof. Dr. Sevil Bilgin · Bel ve boyun cerrahisi sonrası rehabilitasyon</small></div>
+  <div class="brand"><h1>Prof. Dr. <i>Sevil</i> Bilgin</h1><small>Takvim · Özel hastalar · Egzersiz · Öğrenciler</small></div>
   <nav class="tabs" role="tablist" id="tabs"></nav>
 </div></header>
 <main id="app"><div class="empty">Defter açılıyor…</div></main>
@@ -415,7 +466,7 @@ const weekStart = d => { const x=new Date((d||today())+"T12:00:00"); const k=(x.
 // ---------- state
 const S = { view:"ajanda", libTab:"egzersiz", pubFilter:"AKTIF", sel:null, filter:"ALL", metric:{}, sheet:null, confirm:null,
   patients:[], studies:[], students:[], customEx:[], loaded:false, db:null, base:null, persist:"pending",
-  studySel:null, resMetric:null, csvText:null, stuSel:null, tfilter:"OZEL", exFilter:"ALL", pubs:[], exMedia:{}, assets:null, busy:false };
+  studySel:null, resMetric:null, csvText:null, stuSel:null, tfilter:"OZEL", exFilter:"ALL", pubs:[], events:[], calMode:"hafta", calRef:null, exMedia:{}, assets:null, busy:false };
 const demo = () => false;
 const P = () => S.patients;
 const ST = () => S.studies;
@@ -435,6 +486,7 @@ function save(id, body){
 }
 function upsertPatient(p){ const i=S.patients.findIndex(x=>x.id===p.id); if(i<0) S.patients.push(p); else S.patients[i]=p; save(p.id, p); }
 function upsertPub(x){ const i=S.pubs.findIndex(y=>y.id===x.id); if(i<0) S.pubs.push(x); else S.pubs[i]=x; save(x.id, x); }
+function upsertEvent(x){ const i=S.events.findIndex(y=>y.id===x.id); if(i<0) S.events.push(x); else S.events[i]=x; save(x.id, x); }
 function upsertStudent(s){ const i=S.students.findIndex(x=>x.id===s.id); if(i<0) S.students.push(s); else S.students[i]=s; save(s.id, s); }
 function saveMeta(){ save("meta", {kind:"meta", studies:S.studies, customEx:S.customEx, exMedia:S.exMedia, hiddenEx:S.hiddenEx||[]}); }
 
@@ -447,11 +499,11 @@ async function init(){
   S.db=db; S.base="data/users/"+uid; S.persist="on";
   try{ const cw = user.can ? await user.can("data.write") : null; if(cw===false) S.readonly=true; }catch(e){}
   db.collection(S.base).onSnapshot(snap => {
-    const pats=[], stus=[], pubs=[]; let meta=null;
+    const pats=[], stus=[], pubs=[], evs=[]; let meta=null;
     snap.docs.forEach(d => { const b=d.data(); if(!b) return; const c=()=>JSON.parse(JSON.stringify(b));
-      if(b.kind==="meta") meta=b; else if(b.kind==="patient") pats.push(c()); else if(b.kind==="student") stus.push(c()); else if(b.kind==="pub") pubs.push(c()); });
+      if(b.kind==="meta") meta=b; else if(b.kind==="patient") pats.push(c()); else if(b.kind==="student") stus.push(c()); else if(b.kind==="pub") pubs.push(c()); else if(b.kind==="event") evs.push(c()); });
     pats.sort((a,b)=>a.code.localeCompare(b.code,"tr")); stus.sort((a,b)=>a.name.localeCompare(b.name,"tr"));
-    S.patients=pats; S.students=stus; S.pubs=pubs; S.studies=meta?.studies ? JSON.parse(JSON.stringify(meta.studies)) : S.studies; S.customEx=meta?.customEx ? JSON.parse(JSON.stringify(meta.customEx)) : S.customEx; S.exMedia=meta?.exMedia ? JSON.parse(JSON.stringify(meta.exMedia)) : S.exMedia; S.hiddenEx=meta?.hiddenEx ? [...meta.hiddenEx] : (S.hiddenEx||[]);
+    S.patients=pats; S.students=stus; S.pubs=pubs; S.events=evs; S.studies=meta?.studies ? JSON.parse(JSON.stringify(meta.studies)) : S.studies; S.customEx=meta?.customEx ? JSON.parse(JSON.stringify(meta.customEx)) : S.customEx; S.exMedia=meta?.exMedia ? JSON.parse(JSON.stringify(meta.exMedia)) : S.exMedia; S.hiddenEx=meta?.hiddenEx ? [...meta.hiddenEx] : (S.hiddenEx||[]);
     S.loaded=true; render();
   }, () => { S.persist="off"; S.loaded=true; render(); });
 }
@@ -473,7 +525,7 @@ function banner(){
     const lb=window.__LOCAL.lastBackup(); const days = lb ? Math.floor((Date.now()-new Date(lb))/864e5) : null;
     if(days==null || days>=30) return `<div class="banner"><span class="sp"><b>${days==null?"Henüz yedek alınmadı.":`Son yedek ${days} gün önce.`}</b> Veriler yalnızca bu bilgisayardaki tarayıcıda duruyor. Ayda bir yedek almanız önerilir.</span><button class="btn primary" data-act="doBackup">Yedeği indir</button></div>`;
   }
-  if(hasDemo()) return `<div class="banner"><span class="sp"><b>Örnek veriler yüklü.</b> Kod adı “ÖRNEK” ile başlayan hastalar ve öğrenciler tanıtım içindir, gerçek kişiler değildir. Gerçek kullanıma geçmeden silin.</span><button class="btn" data-act="clearDemo">Örnekleri sil</button></div>`;
+  if(hasDemo()) return `<div class="banner"><span class="sp"><b>Örnek veriler yüklü.</b> “ÖRNEK” ile başlayan hastalar, öğrenciler ve etkinlikler tanıtım içindir, gerçek kişiler değildir. Gerçek kullanıma geçmeden silin.</span><button class="btn" data-act="clearDemo">Örnekleri sil</button></div>`;
   return "";
 }
 function render(){
@@ -489,7 +541,7 @@ function ownerLabel(p){
   const s=S.students.find(x=>x.id===p.owner);
   return s ? `Klinik · ${esc(s.name)}` : "Klinik · cerrahi sonrası";
 }
-const hasDemo = () => S.patients.some(p=>p.demo) || S.students.some(x=>x.demo);
+const hasDemo = () => S.patients.some(p=>p.demo) || S.students.some(x=>x.demo) || S.events.some(x=>x.demo);
 const plus = n => { const x=new Date(today()+"T12:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
 function loadDemo(){
   const stj={id:"s-demo1",kind:"student",demo:true,name:"ÖRNEK Stajyer",level:"Stajyer",topic:"Güz dönemi klinik stajı",log:[]};
@@ -510,11 +562,17 @@ function loadDemo(){
     program:prog([["x-l1","10 × 10 sn","Günde 2"],["x-l2","10 × 10 sn","Günde 2"],["x-l3","2 × 8","Günde 1"]],[{week:w(1),done:6,target:14}])};
   const p3={id:"p-demo3",kind:"patient",demo:true,code:"ÖRNEK-K1",group:"LOMBER",type:"POSTOP",owner:"s-demo1",dx:"L5–S1 mikrodiskektomi sonrası",surgery:"Mikrodiskektomi",surgeryDate:plus(-40),assessments:[{id:"dc1",date:plus(-30),visit:"Post-op 2. hafta",nrs:5,odi_raw:22}]};
   [stj,yl].forEach(upsertStudent); [p1,p2,p3].forEach(upsertPatient);
+  const wd = n => addDays(weekStart(today()), n);
+  [{id:"ev-demo1",kind:"event",demo:true,title:"ÖRNEK · Lisans dersi: Spinal rehabilitasyon",type:"ders",date:wd(0),start:"10:00",end:"12:00",loc:"B-201",repeat:"hafta"},
+   {id:"ev-demo2",kind:"event",demo:true,title:"ÖRNEK · Bölüm akademik kurulu",type:"toplanti",date:wd(2),start:"14:00",end:"15:30",loc:"Toplantı salonu"},
+   {id:"ev-demo3",kind:"event",demo:true,title:"ÖRNEK · Seminer: Multifidus ve US",type:"seminer",date:wd(3),start:"13:30",loc:"Konferans salonu"},
+   {id:"ev-demo4",kind:"event",demo:true,title:"ÖRNEK · Ulusal fizyoterapi kongresi",type:"kongre",date:wd(12),loc:"Ankara"}].forEach(upsertEvent);
   S.sel="p-demo1"; S.view="ajanda"; render(); toast("Örnek veriler yüklendi.");
 }
 function clearDemo(){
   S.patients.filter(p=>p.demo).forEach(p=>save(p.id,null)); S.students.filter(x=>x.demo).forEach(x=>save(x.id,null));
-  S.patients=S.patients.filter(p=>!p.demo); S.students=S.students.filter(x=>!x.demo); S.sel=null; S.stuSel=null; render(); toast("Örnek veriler silindi.");
+  S.events.filter(x=>x.demo).forEach(x=>save(x.id,null));
+  S.patients=S.patients.filter(p=>!p.demo); S.students=S.students.filter(x=>!x.demo); S.events=S.events.filter(x=>!x.demo); S.sel=null; S.stuSel=null; render(); toast("Örnek veriler silindi.");
 }
 function autoPanel(){
   const L=window.__LOCAL; if(!L) return "";
@@ -549,6 +607,7 @@ function welcome(){
   return `<div class="panel welcome"><h2>Defter hazır.</h2>
     <p>Her şey boş başlıyor; doldurdukça şekillenir.</p>
     <ol>
+      <li><b>Takvim:</b> toplantı, seminer, ders ve kongreleri bir güne dokunarak ekleyin; haftalık dersler tekrarlanabilir. Hasta randevuları ve öğrenci tarihleri takvime kendiliğinden düşer.</li>
       <li><b>Özel hastalar:</b> + Hasta ile kodla kaydedin, bölgesini seçin. Değerlendirme, ICF, seans ve sonraki randevu hasta sayfasında.</li>
       <li><b>Egzersiz:</b> hastaya kütüphaneden program kurun, PDF reçeteyi verin, her hafta yapılan seansı işaretleyin.</li>
       <li><b>Öğrenciler:</b> tez öğrencilerinin aşaması ve görüşmeleri; stajyerlerin klinik hastaları Salı kliniği kartında özetlenir.</li>
@@ -962,35 +1021,79 @@ function academicDue(){
     ...S.students.filter(x=>x.level!=="Stajyer").flatMap(x=>[x.nextMeet?{d:x.nextMeet,t:"Görüşme",who:x.name,act:"stuSel",id:x.id}:null, x.deadline?{d:x.deadline,t:x.deadlineNote||"Son tarih",who:x.name,act:"stuSel",id:x.id}:null]),
   ].filter(Boolean).filter(e=>{const n=daysTo(e.d); return n>=-7 && n<=30;}).sort((a,b)=>a.d.localeCompare(b.d));
 }
+const EV_TYPES = [["toplanti","Toplantı"],["seminer","Seminer"],["ders","Ders"],["kongre","Kongre"],["juri","Jüri / savunma"],["kisisel","Kişisel"],["diger","Diğer"]];
+const EV_LABEL = Object.fromEntries([...EV_TYPES,["randevu","Hasta randevusu"],["ogrenci","Öğrenci"],["klinik","Salı kliniği"]]);
+const iso = d => { const x=new Date(d); return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const addDays = (d,n) => { const x=new Date(d+"T12:00:00"); x.setDate(x.getDate()+n); return iso(x); };
+const monStart = d => weekStart(d);
+function calItems(from, to){
+  const out=[]; const inR=d=>d>=from&&d<=to;
+  S.events.forEach(e=>{
+    if(!e.date) return;
+    if(e.repeat==="hafta"){ let d=e.date; const until=e.until||"9999"; while(d<from) d=addDays(d,7); for(;d<=to && d<=until; d=addDays(d,7)) if(!(e.skip||[]).includes(d)) out.push({d, t:e.start||"", end:e.end||"", title:e.title, k:e.type, loc:e.loc, act:"editEv", id:e.id, rep:true}); }
+    else if(inR(e.date)) out.push({d:e.date, t:e.start||"", end:e.end||"", title:e.title, k:e.type, loc:e.loc, act:"editEv", id:e.id});
+  });
+  S.patients.forEach(p=>{ const a=p.nextAppt; if(a?.date && inR(a.date)) out.push({d:a.date, t:a.time||"", title:p.code, sub:p.dx||"", k:"randevu", act:"pSel", id:p.id}); });
+  S.students.forEach(x=>{ if(x.nextMeet&&inR(x.nextMeet)) out.push({d:x.nextMeet, t:"", title:`${x.name} · görüşme`, k:"ogrenci", act:"stuSel", id:x.id});
+    if(x.deadline&&inR(x.deadline)) out.push({d:x.deadline, t:"", title:`${x.name} · ${x.deadlineNote||"son tarih"}`, k:"ogrenci", act:"stuSel", id:x.id, due:true}); });
+  if(S.patients.some(p=>(p.type||"POSTOP")==="POSTOP") || S.students.some(x=>x.level==="Stajyer"))
+    for(let d=from; d<=to; d=addDays(d,1)) if(new Date(d+"T12:00:00").getDay()===2) out.push({d, t:"", title:"Salı kliniği", k:"klinik", act:"scrollClinic", id:""});
+  return out.sort((a,b)=>a.d.localeCompare(b.d) || (a.t||"00").localeCompare(b.t||"00"));
+}
+function chip(it, compact){
+  const time = it.t ? `<span class="ct mono">${esc(it.t)}${it.end&&!compact?"–"+esc(it.end):""}</span>` : "";
+  return `<button class="chipev k-${esc(it.k)}" data-act="${it.act}" data-id="${esc(it.id)}" ${it.act==="editEv"?`data-d="${esc(it.d)}"`:""} title="${esc(EV_LABEL[it.k]||"")}${it.loc?" · "+esc(it.loc):""}">
+    <span class="cd"></span>${time}<span class="cl">${esc(it.title)}</span>${!compact&&(it.loc||it.sub)?`<span class="cs">${esc(it.loc||it.sub)}</span>`:""}</button>`;
+}
 function viewAgenda(){
-  const t=today();
-  const appts=S.patients.filter(p=>p.type==="OZEL" && p.nextAppt?.date).map(p=>({p,d:p.nextAppt.date,tm:p.nextAppt.time||""}))
-    .filter(x=>{const n=daysTo(x.d); return n>=-1 && n<=7;}).sort((a,b)=>(a.d+a.tm).localeCompare(b.d+b.tm));
-  const due=academicDue();
+  const t=today(); const ref=S.calRef||t;
   const post=S.patients.filter(p=>(p.type||"POSTOP")==="POSTOP");
   const lastA=p=>[...p.assessments].sort((a,b)=>b.date.localeCompare(a.date))[0];
   const flags=post.map(p=>{ const l=lastA(p); const ad=(p.program?.adherence||[]).slice().sort((a,b)=>a.week.localeCompare(b.week)).pop();
       const why=[]; if(!l) why.push("değerlendirme yok"); else if(daysTo(l.date)<-21) why.push(`son değerlendirme ${-daysTo(l.date)} gün önce`);
       if(ad && ad.target && ad.done/ad.target<0.5) why.push(`uyum %${Math.round(ad.done/ad.target*100)}`);
       return why.length?{p,why}:null; }).filter(Boolean);
-  const pubsActive=S.pubs.filter(x=>!["Yayında","Ret"].includes(x.status));
-  const nt=nextTuesday();
-  const apptList = appts.length ? `<ul class="agenda">${appts.map(x=>`<li><span class="ad"><b>${esc(dayName(x.d))}</b><span class="mono hint">${shortDate(x.d)}${x.tm?" · "+esc(x.tm):""}</span></span>
-      <button class="rowbtn mono" data-act="pSel" data-id="${x.p.id}">${esc(x.p.code)}</button><span class="hint ell">${esc(x.p.dx||"")} · ${(x.p.sessions||[]).length}${x.p.pkg?"/"+x.p.pkg:""} seans</span></li>`).join("")}</ul>`
-    : `<p class="hint">Önümüzdeki 7 günde randevu yok. Özel hastanın sayfasında “Sonraki randevu”yu girince burada görünür.</p>`;
-  const dueList = due.length ? `<ul class="agenda">${due.map(e=>{const n=daysTo(e.d); return `<li><span class="ad"><b>${esc(e.t)}</b><span class="mono hint">${shortDate(e.d)}</span></span>
-      <button class="rowbtn ell" data-act="${e.act}" data-id="${e.id}">${esc(e.who)}</button><span class="delta ${n<0?"bad":n<=7?"warnc":"flat"}">${dueTxt(n)}</span></li>`;}).join("")}</ul>`
-    : `<p class="hint">Önümüzdeki 30 günde öğrenci görüşmesi veya son tarih yok.</p>`;
+  let grid, label;
+  if(S.calMode==="ay"){
+    const first=ref.slice(0,8)+"01"; const start=monStart(first); const end=addDays(start,41);
+    const items=calItems(start,end); const m=first.slice(0,7);
+    label=new Date(first+"T12:00:00").toLocaleDateString("tr-TR",{month:"long",year:"numeric"});
+    let cells=""; for(let i=0;i<42;i++){ const d=addDays(start,i); const its=items.filter(x=>x.d===d);
+      cells+=`<div class="mc ${d.slice(0,7)!==m?"out":""} ${d===t?"today":""}"><button class="mday" data-act="newEv" data-d="${d}" aria-label="${esc(fmtDate(d))} etkinlik ekle">${+d.slice(8)}</button>
+        ${its.slice(0,3).map(x=>chip(x,true)).join("")}${its.length>3?`<button class="more" data-act="calDay" data-d="${d}">+${its.length-3} daha</button>`:""}</div>`; }
+    grid=`<div class="mhead">${["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"].map(x=>`<span>${x}</span>`).join("")}</div><div class="mgrid">${cells}</div>`;
+  } else {
+    const start=monStart(ref); const end=addDays(start,6); const items=calItems(start,end);
+    label=`${new Date(start+"T12:00:00").toLocaleDateString("tr-TR",{day:"numeric",month:"short"})} – ${new Date(end+"T12:00:00").toLocaleDateString("tr-TR",{day:"numeric",month:"short",year:"numeric"})}`;
+    grid=`<div class="wgrid">${[0,1,2,3,4,5,6].map(i=>{ const d=addDays(start,i); const its=items.filter(x=>x.d===d); const dt=new Date(d+"T12:00:00");
+      return `<div class="wd ${d===t?"today":""} ${d<t?"past":""} ${i>4?"wknd":""}"><div class="wh"><span class="wn">${dt.toLocaleDateString("tr-TR",{weekday:"short"})}</span><span class="wdn mono">${dt.getDate()}</span>
+        <button class="wadd" data-act="newEv" data-d="${d}" aria-label="${esc(fmtDate(d))} etkinlik ekle">+</button></div>
+        <div class="wl">${its.length?its.map(x=>chip(x,false)).join(""):`<span class="wempty">—</span>`}</div></div>`; }).join("")}</div>`;
+  }
+  const legend=[["randevu","Hasta"],["ogrenci","Öğrenci"],["toplanti","Toplantı"],["seminer","Seminer"],["ders","Ders"],["kongre","Kongre"],["klinik","Salı kliniği"]];
   return `<div class="agenda-head"><h2>${new Date(t+"T12:00:00").toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long"})}</h2>
       <div class="kpis"><span><b class="mono">${S.patients.filter(p=>p.type==="OZEL").length}</b> özel hasta</span><span><b class="mono">${S.patients.filter(p=>(p.program?.items||[]).some(it=>!(it.end&&it.end<today()))).length}</b> aktif egzersiz programı</span><span><b class="mono">${S.students.length}</b> öğrenci</span></div></div>
-    ${S.patients.length||S.students.length ? "" : welcome()}
+    ${S.patients.length||S.students.length||S.events.length ? "" : welcome()}
+    <div class="panel cal">
+      <div class="calbar"><div class="calnav"><button class="btn" data-act="calPrev" aria-label="Önceki">‹</button><button class="btn" data-act="calToday">Bugün</button><button class="btn" data-act="calNext" aria-label="Sonraki">›</button>
+        <span class="callabel">${esc(label)}</span></div>
+        <div class="calnav"><div class="seg"><button data-act="calMode" data-v="hafta" aria-pressed="${S.calMode!=="ay"}">Hafta</button><button data-act="calMode" data-v="ay" aria-pressed="${S.calMode==="ay"}">Ay</button></div>
+        <button class="btn primary" data-act="newEv" data-d="${S.calMode==="ay"?t:(ref<monStart(ref)?t:(t>=monStart(ref)&&t<=addDays(monStart(ref),6)?t:monStart(ref)))}">+ Etkinlik</button></div></div>
+      ${grid}
+      <div class="legend">${legend.map(([k,l])=>`<span class="k-${k}"><span class="cd"></span>${l}</span>`).join("")}</div>
+    </div>
     <div class="agrid">
-      <div class="panel"><div class="panel-h"><h3>Bu hafta · özel hastalar</h3><button class="btn" data-act="newPatient">+ Hasta</button></div>${apptList}</div>
-      <div class="panel"><div class="panel-h"><h3>Öğrenciler · 30 gün</h3><button class="btn" data-act="newStu">+ Öğrenci</button></div>${dueList}</div>
-      <div class="panel quiet"><div class="panel-h"><h3>Salı kliniği · ${shortDate(nt)}</h3><span class="hint">${post.length} cerrahi sonrası hasta</span></div>
-        ${flags.length?`<ul class="agenda">${flags.slice(0,6).map(f=>`<li><button class="rowbtn mono" data-act="pSel" data-id="${f.p.id}">${esc(f.p.code)}</button><span class="hint ell">${ownerLabel(f.p)}</span><span class="delta warnc">${esc(f.why.join(", "))}</span></li>`).join("")}</ul>${flags.length>6?`<p class="hint">+${flags.length-6} hasta daha</p>`:""}`
+      <div class="panel" id="clinicCard"><div class="panel-h"><h3>Salı kliniği · ${shortDate(nextTuesday())}</h3><span class="hint">${post.length} cerrahi sonrası hasta</span></div>
+        ${flags.length?`<ul class="agenda">${flags.slice(0,6).map(f=>`<li class="q3"><button class="rowbtn mono" data-act="pSel" data-id="${f.p.id}">${esc(f.p.code)}</button><span class="hint ell">${ownerLabel(f.p)}</span><span class="delta warnc">${esc(f.why.join(", "))}</span></li>`).join("")}</ul>${flags.length>6?`<p class="hint">+${flags.length-6} hasta daha</p>`:""}`
           :`<p class="hint">${post.length?"Dikkat isteyen hasta yok: hepsi son 3 haftada değerlendirilmiş, uyum %50'nin üzerinde.":"Klinik hastası eklenmedi. Stajyerlerin hastaları buraya yalnızca dikkat gerektirdiğinde düşer."}</p>`}</div>
+      <div class="panel"><div class="panel-h"><h3>Önümüzdeki 14 gün</h3></div>${upcomingList()}</div>
     </div>`;
+}
+function upcomingList(){
+  const t=today(); const its=calItems(t, addDays(t,14)).filter(x=>x.k!=="klinik");
+  if(!its.length) return `<p class="hint">Önümüzdeki iki haftada kayıtlı bir şey yok. Takvimde bir güne dokunarak toplantı, seminer veya ders ekleyebilirsiniz.</p>`;
+  return `<ul class="agenda">${its.slice(0,10).map(x=>{ const n=daysTo(x.d); return `<li><span class="ad"><b>${n===0?"Bugün":n===1?"Yarın":esc(dayName(x.d))}</b><span class="mono hint">${shortDate(x.d)}${x.t?" · "+esc(x.t):""}</span></span>
+    ${chip(x,true)}<span class="hint ell">${esc(EV_LABEL[x.k]||"")}${x.loc?" · "+esc(x.loc):""}</span></li>`; }).join("")}</ul>`;
 }
 
 // ---------- publications
@@ -1120,6 +1223,19 @@ function renderSheet(){
         <div class="f"><label for="f-xq${i}">Niteleyici</label><input id="f-xq${i}" name="xq${i}" value="${esc(x.q)}" placeholder="0–4"></div>`).join("")}</fieldset>
       <div class="f"><label for="f-pf">Kişisel faktörler</label><textarea id="f-pf" name="pf" rows="2" placeholder="Yaş, meslek, baş etme tarzı, hareket korkusu…">${esc(r.pf||"")}</textarea></div>
       <div class="f"><label for="f-goal">Hasta ile birlikte belirlenen hedef</label><textarea id="f-goal" name="goal" rows="2" placeholder="6 hafta içinde 30 dk ağrısız masa başı çalışma (d415)">${esc(r.goal||"")}</textarea></div>`;
+  } else if(sh.type==="event"){
+    const e = sh.xid ? S.events.find(y=>y.id===sh.xid) : {date:sh.d||today(), type:"toplanti", repeat:""};
+    const oz=S.patients.filter(p=>p.type==="OZEL");
+    html = `<h3>${sh.xid?"Etkinliği düzenle":"Yeni etkinlik"}</h3>
+      ${sh.xid&&e.repeat==="hafta"?`<p class="hint">Her hafta tekrarlanan bir etkinlik. Değişiklik tüm haftalara uygulanır${sh.d?`; yalnızca ${esc(fmtDate(sh.d))} gününü iptal etmek için aşağıdaki “Bu haftayı atla”yı kullanın`:""}.</p>`:""}
+      <fieldset><legend>Etkinlik</legend>${sel("type","Tür",[...EV_TYPES, ...(sh.xid?[]:[["randevu","Hasta randevusu"]])],e.type)}
+        <div class="f wide" id="evTitleWrap"><label for="f-title">Başlık</label><input id="f-title" name="title" value="${esc(e.title||"")}" placeholder="Bölüm akademik kurulu"></div>
+        ${sh.xid?"":`<div class="f wide" id="evPatWrap" hidden><label for="f-pat">Hasta</label><select id="f-pat" name="pat">${oz.length?oz.map(p=>`<option value="${p.id}">${esc(p.code)} · ${esc(p.dx||"")}</option>`).join(""):`<option value="">Önce özel hasta ekleyin</option>`}</select></div>`}
+        ${fld("date","Tarih",e.date,"date","required")}${fld("start","Başlangıç",e.start,"time")}${fld("end","Bitiş",e.end,"time")}
+        <div class="f wide" id="evLocWrap"><label for="f-loc">Yer</label><input id="f-loc" name="loc" value="${esc(e.loc||"")}" placeholder="Konferans salonu, Zoom…"></div></fieldset>
+      <fieldset id="evRepWrap"><legend>Tekrar</legend>${sel("repeat","Tekrar",[["","Tekrarlamaz"],["hafta","Her hafta"]],e.repeat)}${fld("until","Son tarih (isteğe bağlı)",e.until,"date")}</fieldset>
+      <div class="f" id="evNoteWrap"><label for="f-note">Not</label><textarea id="f-note" name="note" rows="2">${esc(e.note||"")}</textarea></div>
+      ${sh.xid&&e.repeat==="hafta"&&sh.d?`<button type="button" class="btn" data-act="skipEv">Yalnızca ${esc(shortDate(sh.d))} haftasını atla</button>`:""}`;
   } else if(sh.type==="pub"){
     const x = sh.xid ? S.pubs.find(y=>y.id===sh.xid) : {type:"Makale", status:"Yazım"};
     html = `<h3>${sh.xid?"Yayını düzenle":"Yeni yayın"}</h3>
@@ -1178,12 +1294,12 @@ function renderSheet(){
       <fieldset><legend>Takvim</legend>${fld("nextMeet","Sonraki görüşme",s.nextMeet,"date")}${fld("deadline","Son tarih",s.deadline,"date")}
         <div class="f"><label for="f-deadlineNote">Son tarih ne için</label><input id="f-deadlineNote" name="deadlineNote" value="${esc(s.deadlineNote||"")}" placeholder="TİK raporu"></div></fieldset>`;
   }
-  const canDel = (sh.type==="patient"&&sh.pid)||(sh.type==="assess"&&sh.aid)||(sh.type==="study"&&sh.sid)||(sh.type==="student"&&sh.sid)||(sh.type==="exercise"&&sh.xid)||(sh.type==="pub"&&sh.xid)||(sh.type==="exVideo"&&S.exMedia[sh.xid])||(sh.type==="customEx"&&sh.xid)||(sh.type==="icf"&&sh.aid);
-  const delLabel = sh.type==="patient"?"Hastayı ve tüm değerlendirmelerini sil":sh.type==="assess"?"Bu değerlendirmeyi sil":sh.type==="student"?"Öğrenciyi ve notlarını sil":sh.type==="exercise"?"Programdan çıkar":sh.type==="pub"?"Yayını sil":sh.type==="exVideo"?"Videoyu kaldır":sh.type==="customEx"?"Egzersizi kütüphaneden sil":sh.type==="icf"?"Bu ICF değerlendirmesini sil":"Çalışmayı sil (hastalar kalır)";
+  const canDel = (sh.type==="patient"&&sh.pid)||(sh.type==="assess"&&sh.aid)||(sh.type==="study"&&sh.sid)||(sh.type==="student"&&sh.sid)||(sh.type==="exercise"&&sh.xid)||(sh.type==="pub"&&sh.xid)||(sh.type==="exVideo"&&S.exMedia[sh.xid])||(sh.type==="customEx"&&sh.xid)||(sh.type==="icf"&&sh.aid)||(sh.type==="event"&&sh.xid);
+  const delLabel = sh.type==="patient"?"Hastayı ve tüm değerlendirmelerini sil":sh.type==="assess"?"Bu değerlendirmeyi sil":sh.type==="student"?"Öğrenciyi ve notlarını sil":sh.type==="exercise"?"Programdan çıkar":sh.type==="pub"?"Yayını sil":sh.type==="exVideo"?"Videoyu kaldır":sh.type==="customEx"?"Egzersizi kütüphaneden sil":sh.type==="icf"?"Bu ICF değerlendirmesini sil":sh.type==="event"?"Etkinliği sil":"Çalışmayı sil (hastalar kalır)";
   root.innerHTML = `<div class="sheet-bg" data-act="closeBg"><form class="sheet" id="sheetForm" role="dialog" aria-modal="true">${html}
     <div class="sheet-foot">${canDel ? (S.confirm ? `<span class="confirm">Emin misiniz? <button type="button" class="btn danger" data-act="doDelete">Evet, sil</button><button type="button" class="btn ghost" data-act="noDelete">Vazgeç</button></span>` : `<button type="button" class="btn danger ghost" data-act="askDelete">${delLabel}</button>`) : "<span></span>"}
       <span class="actions"><button type="button" class="btn" data-act="close">İptal</button><button type="submit" class="btn primary" ${S.busy?"disabled":""}>${S.busy?"Yükleniyor…":"Kaydet"}</button></span></div></form></div>`;
-  updateCalc();
+  updateCalc(); evTypeToggle();
   const first=root.querySelector("input,select"); if(first && !S.confirm) first.focus({preventScroll:true});
 }
 function updateCalc(){
@@ -1247,6 +1363,17 @@ function submitSheet(f){
     const it={id:sh.xid||rid("x-"), exId:d.exId, name, dose:d.dose.trim()||ex?.dose||"", freq:d.freq, start:d.start, end:d.end, note:d.note.trim()};
     const i=p.program.items.findIndex(x=>x.id===it.id); if(i<0) p.program.items.push(it); else p.program.items[i]=it;
     upsertPatient(p); toast("Program güncellendi.");
+  } else if(sh.type==="event"){
+    if(d.type==="randevu"){
+      if(!d.pat){ toast("Önce özel hasta ekleyin."); return; }
+      const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===d.pat))); p.nextAppt={date:d.date, time:d.start}; upsertPatient(p); toast(`${p.code} randevusu kaydedildi.`);
+    } else {
+      const title=d.title.trim(); if(!title){ toast("Başlık gerekli."); return; }
+      if(d.end && d.start && d.end<d.start){ toast("Bitiş saati başlangıçtan önce olamaz."); return; }
+      const base = sh.xid ? S.events.find(y=>y.id===sh.xid) : {id:rid("ev-"), kind:"event"};
+      upsertEvent({...base, title, type:d.type, date:d.date, start:d.start, end:d.end, loc:d.loc.trim(), repeat:d.repeat, until:d.repeat?d.until:"", note:d.note.trim()});
+      toast("Etkinlik kaydedildi.");
+    }
   } else if(sh.type==="icf"){
     const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid)));
     const r={}; Object.entries(d).forEach(([k,v])=>{ if(k.startsWith("icf_") && v!=="") r[k.slice(4)]=v; });
@@ -1281,6 +1408,7 @@ function doDelete(){
   else if(sh.type==="study"){ S.studies=S.studies.filter(s=>s.id!==sh.sid); saveMeta();
     S.patients.filter(p=>p.study===sh.sid).forEach(p=>upsertPatient({...p,study:"",arm:""})); toast("Çalışma silindi."); }
   else if(sh.type==="exercise"){ const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid))); p.program.items=p.program.items.filter(x=>x.id!==sh.xid); upsertPatient(p); toast("Programdan çıkarıldı."); }
+  else if(sh.type==="event"){ S.events=S.events.filter(y=>y.id!==sh.xid); save(sh.xid,null); toast("Etkinlik silindi."); }
   else if(sh.type==="icf"){ const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid))); p.icf=(p.icf||[]).filter(x=>x.id!==sh.aid); upsertPatient(p); toast("ICF değerlendirmesi silindi."); }
   else if(sh.type==="customEx"){ S.customEx=(S.customEx||[]).filter(x=>x.id!==sh.xid); saveMeta(); toast("Egzersiz silindi; programlardaki kayıtlar adıyla kalır."); }
   else if(sh.type==="exVideo"){ const m=S.exMedia[sh.xid]; if(m?.assetId) S.assets?.delete(m.assetId).catch(()=>{}); const c={...S.exMedia}; delete c[sh.xid]; S.exMedia=c; saveMeta(); toast("Video kaldırıldı."); }
@@ -1318,6 +1446,15 @@ document.addEventListener("click", e => {
     case "copyProg": copyText(progText(S.patients.find(x=>x.id===t.dataset.id))); break;
     case "newCustomEx": S.sheet={type:"customEx"}; S.confirm=null; render(); break;
     case "loadDemo": loadDemo(); break;
+    case "newEv": S.sheet={type:"event", d:t.dataset.d}; S.confirm=null; render(); break;
+    case "editEv": S.sheet={type:"event", xid:t.dataset.id, d:t.dataset.d}; S.confirm=null; render(); break;
+    case "skipEv": { const e=JSON.parse(JSON.stringify(S.events.find(y=>y.id===S.sheet.xid))); e.skip=[...(e.skip||[]), S.sheet.d]; upsertEvent(e); S.sheet=null; render(); toast("Bu hafta atlandı."); break; }
+    case "calMode": S.calMode=t.dataset.v; render(); break;
+    case "calToday": S.calRef=null; render(); break;
+    case "calPrev": case "calNext": { const dir=a==="calPrev"?-1:1; const r=S.calRef||today();
+      if(S.calMode==="ay"){ const x=new Date(r.slice(0,8)+"15T12:00:00"); x.setMonth(x.getMonth()+dir); S.calRef=iso(x); } else S.calRef=addDays(r,7*dir); render(); break; }
+    case "calDay": S.calMode="hafta"; S.calRef=t.dataset.d; render(); break;
+    case "scrollClinic": $("#clinicCard")?.scrollIntoView({behavior:"smooth",block:"center"}); break;
     case "doBackup": doBackup(); break;
     case "chooseAuto": window.__LOCAL.chooseAuto().then(st=>{ toast(st==="ok"?"Otomatik yedek açıldı.":"Dosyaya yazılamadı; tekrar deneyin."); }).catch(e=>{ if(e?.name!=="AbortError") toast("Dosya seçilemedi."); }); break;
     case "resumeAuto": window.__LOCAL.resumeAuto().then(st=>toast(st==="ok"?"Otomatik yedek sürüyor.":"İzin verilmedi; yedek duraklatıldı.")); break;
@@ -1356,7 +1493,10 @@ document.addEventListener("submit", e => { if(e.target.id==="sheetForm"){ e.prev
   else if(e.target.id==="apptForm"){ e.preventDefault(); setAppt(e.target); } });
 document.addEventListener("input", e => { if(e.target.closest("#sheetForm")) updateCalc(); });
 let qT; document.addEventListener("input", e => { if(e.target.id==="f-exq"){ clearTimeout(qT); qT=setTimeout(()=>{ S.exQ=e.target.value; render(); const el=$("#f-exq"); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } },200); } });
-document.addEventListener("change", e => { if(e.target.id==="f-restore"){ readRestore(e.target.files?.[0]); return; }
+function evTypeToggle(){ const f=$("#sheetForm"); if(!f||!f.elements.repeat||!f.elements.type) return; const r=f.elements.type.value==="randevu";
+  ["evTitleWrap","evLocWrap","evRepWrap","evNoteWrap"].forEach(id=>{ const el=$("#"+id); if(el) el.hidden=r; }); const pw=$("#evPatWrap"); if(pw) pw.hidden=!r; }
+document.addEventListener("change", e => { if(e.target.closest("#sheetForm") && e.target.name==="type") evTypeToggle();
+  if(e.target.id==="f-restore"){ readRestore(e.target.files?.[0]); return; }
   if(e.target.id==="f-excat"){ S.exCat=e.target.value; render(); return; } if(e.target.id==="f-exId"){ const ex=allEx().find(x=>x.id===e.target.value); const f=e.target.form; if(ex){ f.elements.name.value=ex.name; f.elements.dose.value=ex.dose||""; } } });
 document.addEventListener("keydown", e => { if(e.key==="Escape" && S.sheet){ S.sheet=null; S.confirm=null; render(); } });
 
