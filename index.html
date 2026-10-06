@@ -1154,7 +1154,7 @@ function renderSheet(){
   } else if(sh.type==="backup"){
     const lb=window.__LOCAL?.lastBackup();
     root.innerHTML = `<div class="sheet-bg" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><h3>Yedek</h3>
-      <p class="hint">Bu dosya sürümünde tüm kayıtlar yalnızca bu bilgisayardaki tarayıcıda saklanır. Tarayıcı verileri temizlenirse kaybolabilir; düzenli yedek alın ve yedek dosyasını güvenli bir yerde saklayın.</p>
+      <p class="hint">Tüm kayıtlar yalnızca bu bilgisayardaki tarayıcıda saklanır; internete gönderilmez. Tarayıcı verileri temizlenirse kaybolabilir; düzenli yedek alın ve yedek dosyasını güvenli bir yerde saklayın.</p>
       ${autoPanel()}
       <div class="panel"><div class="panel-h"><h3>Elle yedek indir</h3></div><p class="hint" style="margin-top:0">${S.patients.length} hasta, ${S.students.length} öğrenci, ${(S.customEx||[]).length} kendi egzersiziniz. Son yedek: ${lb?fmtDate(lb.slice(0,10)):"hiç alınmadı"}.</p>
         <button class="btn primary" data-act="doBackup">Yedeği indir</button></div>
