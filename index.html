@@ -1,0 +1,1313 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Omurga Rehabilitasyon Defteri</title><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:#F2F4F3}img{max-width:100%}[hidden]{display:none!important}</style></head><body><script>window.__LOCAL=(function(){
+  var KEY="omurga-defteri-veri"; var store={};
+  try{ store=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ store={}; }
+  var subs=[];
+  function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){ throw {code:"quota_exceeded", message:"Tarayıcı depolama alanı dolu"}; } }
+  function snap(){ return {docs:Object.keys(store).map(function(k){ return {id:k, data:function(){ return JSON.parse(JSON.stringify(store[k])); }}; })}; }
+  function fire(){ var s=snap(); subs.forEach(function(f){ f(s); }); }
+  var db={collection:function(){ return {
+    doc:function(id){ return {
+      set:async function(d){ store[id]=JSON.parse(JSON.stringify(d)); persist(); fire(); },
+      delete:async function(){ delete store[id]; persist(); fire(); } }; },
+    onSnapshot:function(next){ subs.push(next); setTimeout(function(){ next(snap()); },0); return function(){}; } }; }};
+  var downloads={save:async function(o){ var blob=o.data instanceof Blob?o.data:new Blob([o.data]); var u=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=u; a.download=o.filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },5000); return {status:"saved"}; }};
+  var user={id:async function(){ return "yerel"; }};
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+  return {
+    use:function(k){ return Promise.resolve({db:db,user:user,downloads:downloads}[k]||null); },
+    dump:function(){ return JSON.parse(JSON.stringify(store)); },
+    load:function(docs){ store=JSON.parse(JSON.stringify(docs)); persist(); fire(); },
+    lastBackup:function(){ try{ return localStorage.getItem(KEY+"-son-yedek"); }catch(e){ return null; } },
+    markBackup:function(){ try{ localStorage.setItem(KEY+"-son-yedek", new Date().toISOString()); }catch(e){} }
+  };
+})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky top bar with tabs; patient list rail + detail column; assessment form in an overlay sheet. */
+:root{
+  --bg:#F2F4F3; --surface:#FFFFFF; --sunk:#E9EDEB; --ink:#16212A; --muted:#5A676E; --line:#D6DDDA;
+  --accent:#26407A; --accent-ink:#FFFFFF; --accent-soft:#E3E8F3;
+  --lomber:#9A3B26; --lomber-soft:#F4E5E0; --boyun:#3E4E9E; --boyun-soft:#E5E8F6;
+  --good:#2C7A4D; --good-soft:#E0F0E6; --warn:#9A6210; --warn-soft:#F6EBD8; --bad:#A3332B;
+  --f-display:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --f-body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10161A; --surface:#172026; --sunk:#1D272E; --ink:#E4E9EB; --muted:#94A1A8; --line:#2A353C;
+  --accent:#A3B7EC; --accent-ink:#10161A; --accent-soft:#222D46;
+  --lomber:#E3907A; --lomber-soft:#3A2520; --boyun:#A7B1EE; --boyun-soft:#252A45;
+  --good:#6FC592; --good-soft:#1C3326; --warn:#E2AB52; --warn-soft:#3A2E18; --bad:#EE8A80; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#10161A; --surface:#172026; --sunk:#1D272E; --ink:#E4E9EB; --muted:#94A1A8; --line:#2A353C;
+  --accent:#A3B7EC; --accent-ink:#10161A; --accent-soft:#222D46;
+  --lomber:#E3907A; --lomber-soft:#3A2520; --boyun:#A7B1EE; --boyun-soft:#252A45;
+  --good:#6FC592; --good-soft:#1C3326; --warn:#E2AB52; --warn-soft:#3A2E18; --bad:#EE8A80; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num,.mono{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:14px 0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 24px}
+.brand{display:flex;flex-direction:column;gap:2px;padding-bottom:12px;min-width:0}
+.brand h1{font-family:var(--f-display);font-weight:400;font-size:28px;line-height:1.05;margin:0;letter-spacing:-.01em}
+.brand h1 i{color:var(--lomber)}
+.brand small{color:var(--muted);font-size:12.5px;letter-spacing:.02em}
+.tabs{display:flex;gap:4px;margin-left:auto;overflow-x:auto}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:10px 12px 12px;color:var(--muted);font-weight:500;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+.banner{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;background:var(--warn-soft);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);border-radius:var(--r);padding:12px 14px;margin-bottom:18px;font-size:14px}
+.banner b{color:var(--warn)}
+.banner .sp{flex:1 1 260px;min-width:0}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:500;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.rail{display:flex;flex-direction:column;gap:10px;min-width:0}
+.rail-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.label{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.filters{display:flex;gap:4px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:none;border-radius:999px;padding:3px 10px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.plist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.pitem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 12px;cursor:pointer}
+.pitem:last-child{border-bottom:0}
+.pitem:hover{background:var(--sunk)}
+.pitem[aria-current="true"]{background:var(--accent-soft)}
+.pitem .code{font-family:var(--f-data);font-weight:500;font-size:14px}
+.pitem .dx{grid-column:2/4;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gtag{font-size:10.5px;font-weight:700;letter-spacing:.06em;border-radius:4px;padding:2px 6px}
+.gtag.LOMBER{background:var(--lomber-soft);color:var(--lomber)}
+.gtag.SERVIKAL{background:var(--boyun-soft);color:var(--boyun)}
+.pitem .n{font-size:12px;color:var(--muted)}
+.gtag.STU{background:var(--accent-soft);color:var(--accent)}
+.stages{display:flex;flex-wrap:wrap;gap:4px}
+.stg{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.stg.done{background:var(--sunk);color:var(--ink);border-color:transparent}
+.stg.now{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.delta.warnc{color:var(--warn)}
+.agenda-head{display:flex;flex-wrap:wrap;gap:6px 24px;align-items:baseline;justify-content:space-between;margin-bottom:18px}
+.agenda-head h2{font-family:var(--f-display);font-weight:400;font-size:34px;margin:0}
+.kpis{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:14px}
+.kpis b{color:var(--ink);font-size:17px;font-weight:500}
+.agrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;margin-top:16px}
+.agrid .panel.quiet{background:var(--bg)}
+.footlinks{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:20px;padding-top:12px;border-top:1px solid var(--line)}
+.footlinks .rowbtn{color:var(--muted);padding-left:0}
+.agenda{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.agenda li{display:grid;grid-template-columns:minmax(96px,auto) auto minmax(0,1fr);gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.agenda li:first-child{border-top:0}
+.quiet .agenda li{grid-template-columns:auto minmax(0,1fr) auto}
+.ad{display:flex;flex-direction:column;line-height:1.25}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-align:left}
+.appt{display:flex;flex-wrap:wrap;gap:10px 20px;justify-content:space-between;align-items:flex-end}
+.apptv{font-size:15px;margin-top:2px}
+.sescount .mono{font-size:20px}
+.pill{font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.pill.draft{background:var(--sunk);color:var(--muted)} .pill.wait{background:var(--accent-soft);color:var(--accent)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.ok{background:var(--good-soft);color:var(--good)} .pill.no{background:var(--lomber-soft);color:var(--bad)}
+table.pubs td.ttl{white-space:normal;min-width:240px;max-width:520px}
+table.pubs td.ttl .rowbtn{text-align:left;font-size:14.5px;font-weight:600;color:var(--ink);padding:0}
+.gtag.ORTAK{background:var(--sunk);color:var(--muted)}
+.welcome{padding:24px;max-width:680px}
+.welcome h2{font-family:var(--f-display);font-weight:400;font-size:34px;margin:0 0 6px}
+.welcome p{margin:0 0 10px;color:var(--muted)}
+.welcome ol{margin:0 0 18px;padding-left:20px;display:flex;flex-direction:column;gap:8px;max-width:62ch}
+.exlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.exi{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.exi:first-child{border-top:0}
+.exi.ended{opacity:.5}
+.exn{color:var(--muted);font-size:13px;padding-top:2px}
+.exb{display:flex;flex-direction:column;gap:2px;min-width:0}
+.exnote{font-size:13px;color:var(--ink);background:var(--sunk);border-radius:4px;padding:4px 8px;margin-top:4px;max-width:65ch}
+.adh{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;display:flex;flex-direction:column;gap:12px}
+.adh-h{display:flex;flex-wrap:wrap;gap:10px 20px;justify-content:space-between;align-items:flex-end}
+.adh-avg .mono{font-size:22px}
+.adhform{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.adhform input{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 8px;font-family:var(--f-data);min-width:0}
+.bars{display:flex;gap:6px;align-items:flex-end;overflow-x:auto;padding-bottom:2px}
+.bar{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 44px}
+.bt{height:90px;width:22px;background:var(--sunk);border-radius:4px;display:flex;align-items:flex-end;overflow:hidden}
+.bf{width:100%;border-radius:4px 4px 0 0}
+.bf.hi{background:var(--good)} .bf.mid{background:var(--warn)} .bf.lo{background:var(--bad)}
+.bv{font-size:11px} .bl{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.excard{display:flex;flex-direction:column;gap:6px}
+.excard h3{margin:0;font-size:16px;font-weight:600}
+.excard.hiddenex{opacity:.55}
+table.icf td{white-space:normal}
+table.icf tr.comp td{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg);padding-top:10px}
+.icfn{color:var(--ink)}
+.qc{white-space:nowrap;min-width:120px}
+.qbar{display:inline-block;width:80px;height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:6px}
+.qf{display:block;height:100%;border-radius:4px}
+.qf.q0{background:var(--good)} .qf.q1{background:color-mix(in srgb,var(--warn) 60%,var(--good))} .qf.q2{background:var(--warn)} .qf.q3{background:var(--bad)} .qf.fac{background:var(--accent)}
+.qv{font-size:12.5px}
+.icfpf{margin:10px 0 0;font-size:14px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+fieldset.icfset{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+/* printable prescription: rendered off-screen, always light */
+.rx-stage{position:fixed;left:-12000px;top:0;width:760px;background:#fff;color:#1b1f23;font-family:var(--f-body);font-size:15px;line-height:1.45}
+.rx-block{background:#fff;padding:6px 4px}
+.rx-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #26407A;padding-bottom:10px}
+.rx-t{font-family:var(--f-display);font-size:32px;color:#26407A;line-height:1.1}
+.rx-s{font-size:13px;color:#5a676e;margin-top:2px}
+.rx-meta{text-align:right;font-size:13px;color:#5a676e}
+.rx-meta b,.rx-fields b{color:#1b1f23;font-weight:600}
+.rx-fields{display:flex;gap:24px;flex-wrap:wrap;font-size:14px;color:#5a676e;padding-top:12px}
+.rx-line{display:inline-block;width:230px;border-bottom:1px solid #9aa4aa;margin-left:6px;height:14px;vertical-align:bottom}
+.rx-line.short{width:120px}
+.rx-ex{display:grid;grid-template-columns:36px 1fr auto;gap:14px;align-items:start;border:1px solid #d6ddda;border-radius:8px;padding:12px 14px}
+.rx-n{width:30px;height:30px;border-radius:50%;background:#26407A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.rx-name{font-size:17px;font-weight:700}
+.rx-dose{font-family:var(--f-data);font-size:13.5px;color:#9A3B26;margin:2px 0 4px}
+.rx-cue{font-size:14px;color:#2d3a42}
+.rx-qr{display:flex;flex-direction:column;align-items:center;gap:4px;width:110px;text-align:center;font-size:11px;color:#5a676e}
+.rx-qr img{width:96px;height:96px}
+.rx-track{border:1px solid #d6ddda;border-radius:8px;padding:12px 14px}
+.rx-tt{font-weight:600;margin-bottom:8px}
+.rx-track table{width:100%;border-collapse:collapse;font-size:13px}
+.rx-track th,.rx-track td{border-bottom:1px solid #e3e8e6;padding:6px;text-align:center;color:#5a676e}
+.rx-track td:first-child{text-align:left;white-space:nowrap}
+.rx-box{display:inline-block;width:16px;height:16px;border:1.5px solid #9aa4aa;border-radius:3px}
+.rx-foot{display:flex;gap:24px;justify-content:space-between;align-items:flex-end;font-size:12.5px;color:#5a676e;padding-top:10px}
+.rx-foot>div:first-child{max-width:430px}
+.rx-sign{white-space:nowrap}
+.excard .mine{color:var(--accent)}
+.exbtns{display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:flex-end}
+.libbar{display:flex;gap:8px;flex-wrap:wrap}
+.libbar input,.libbar select{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 10px;min-width:0}
+.libbar input{flex:1 1 240px}
+.exvid{width:100%;max-width:100%;aspect-ratio:16/9;background:var(--sunk);border-radius:6px;display:block}
+.vlink{display:inline-block;text-decoration:none;font-weight:600;padding-left:0}
+.exfoot .rowbtn+.rowbtn{margin-left:6px}
+.excard p{margin:0;font-size:13.5px;color:var(--muted)}
+.exhead{display:flex;justify-content:space-between;align-items:center}
+.exfoot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:6px}
+.logform{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.logform input{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 9px;min-width:0}
+.logform input[name=text]{flex:1 1 220px}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.log li{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+@media (max-width:480px){.log li{grid-template-columns:minmax(0,1fr)}}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:28px 20px;text-align:center;color:var(--muted)}
+.detail{display:flex;flex-direction:column;gap:18px;min-width:0}
+.dhead{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-start;justify-content:space-between}
+.dhead h2{font-family:var(--f-data);font-weight:500;font-size:26px;margin:0;letter-spacing:-.01em}
+.facts{display:flex;flex-wrap:wrap;gap:4px 16px;color:var(--muted);font-size:13.5px;margin-top:4px}
+.facts b{color:var(--ink);font-weight:500}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.panel-h{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:12px}
+.panel-h h3{margin:0;font-size:15px;font-weight:600}
+.outcomes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.oc{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;background:var(--bg);cursor:pointer;text-align:left}
+.oc[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.oc .k{font-size:12px;color:var(--muted)}
+.oc .v{font-family:var(--f-data);font-size:19px}
+.oc .v small{font-size:12px;color:var(--muted)}
+.delta{font-family:var(--f-data);font-size:12.5px}
+.delta.good{color:var(--good)} .delta.bad{color:var(--bad)} .delta.flat{color:var(--muted)}
+.mcid{font-size:11px;border-radius:4px;padding:1px 5px;margin-left:4px;font-family:var(--f-body);font-weight:600}
+.mcid.yes{background:var(--good-soft);color:var(--good)} .mcid.no{background:var(--sunk);color:var(--muted)}
+.chart-wrap{overflow-x:auto}
+svg.chart{width:100%;min-width:420px;height:auto;display:block}
+.chart .grid-l{stroke:var(--line);stroke-width:1}
+.chart .ax{fill:var(--muted);font-family:var(--f-data);font-size:11px}
+.chart .ln{fill:none;stroke-width:2.2}
+.chart .ln.LOMBER{stroke:var(--lomber)} .chart .ln.SERVIKAL{stroke:var(--boyun)}
+.chart .ar.LOMBER{fill:var(--lomber-soft)} .chart .ar.SERVIKAL{fill:var(--boyun-soft)}
+.chart .pt{fill:var(--surface);stroke-width:2}
+.chart .pt.LOMBER{stroke:var(--lomber)} .chart .pt.SERVIKAL{stroke:var(--boyun)}
+.chart .pt.last.LOMBER{fill:var(--lomber)} .chart .pt.last.SERVIKAL{fill:var(--boyun)}
+.chart .vl{fill:var(--ink);font-family:var(--f-data);font-size:11.5px;font-weight:500}
+.ais-strip{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
+.ais{font-family:var(--f-data);font-weight:500;border-radius:4px;padding:2px 8px;background:var(--boyun-soft);color:var(--boyun)}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right}
+tr:last-child td{border-bottom:0}
+.rowbtn{background:none;border:0;color:var(--accent);cursor:pointer;padding:2px 4px;font-size:13px}
+.note{color:var(--muted);font-size:12.5px;white-space:normal;max-width:260px}
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 45%,transparent);z-index:20;display:flex;justify-content:flex-end}
+.sheet{background:var(--surface);width:min(560px,100%);height:100%;overflow-y:auto;padding:20px 16px calc(28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px;border-left:1px solid var(--line)}
+.sheet h3{font-family:var(--f-display);font-weight:400;font-size:26px;margin:0}
+fieldset{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+legend{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:0 6px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f.wide{grid-column:1/-1}
+.f label{font-size:12.5px;color:var(--muted)}
+.f input,.f select,.f textarea{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 9px;width:100%;min-width:0}
+.f input[type=number]{font-family:var(--f-data)}
+.calc{font-family:var(--f-data);font-size:13px;color:var(--accent);min-height:18px}
+.sheet-foot{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:auto;padding-top:8px}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;color:var(--bad)}
+.hint{font-size:12.5px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.ref dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;margin:0;font-size:13.5px}
+.ref dt{font-family:var(--f-data);font-weight:500}
+.ref dd{margin:0;color:var(--muted)}
+.ref h3{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0 0 4px}
+.ref p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.armrow{display:flex;gap:6px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:14px;z-index:30}
+textarea.csv{width:100%;height:160px;font-family:var(--f-data);font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:8px}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(24px);opacity:.6}}}
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand"><h1>Omurga <i>Rehabilitasyon</i> Defteri</h1><small>Prof. Dr. Sevil Bilgin · Bel ve boyun cerrahisi sonrası rehabilitasyon</small></div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</div></header>
+<main id="app"><div class="empty">Defter açılıyor…</div></main>
+<div id="sheet-root"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+// ---------- helpers
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+const rid = p => p + Math.random().toString(36).slice(2, 9);
+const today = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => { if(!d) return "—"; const x = new Date(d+"T12:00:00"); return isNaN(x) ? d : x.toLocaleDateString("tr-TR",{day:"numeric",month:"short",year:"numeric"}); };
+const shortDate = d => { if(!d) return ""; const x = new Date(d+"T12:00:00"); return isNaN(x) ? d : x.toLocaleDateString("tr-TR",{day:"numeric",month:"short"}); };
+const fmt = (v, dg=1) => v == null ? "—" : (Math.round(v*10**dg)/10**dg).toLocaleString("tr-TR",{maximumFractionDigits:dg});
+const weeksPost = (surg, d) => { if(!surg||!d) return null; const w = Math.round((new Date(d) - new Date(surg)) / 6048e5); return w; };
+const mean = a => a.reduce((s,x)=>s+x,0)/a.length;
+const sd = a => a.length<2 ? null : Math.sqrt(a.reduce((s,x)=>s+(x-mean(a))**2,0)/(a.length-1));
+let toastT; const toast = m => { const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2400); };
+
+// ---------- measures
+const asym = (r,l) => (r==null||l==null||Math.max(r,l)===0) ? null : Math.abs(r-l)/Math.max(r,l)*100;
+const M = {
+  nrs:  {label:"Ağrı (NRS)", unit:"/10", min:0, max:10, dir:-1, mcid:2, groups:["LOMBER","SERVIKAL"], get:a=>num(a.nrs)},
+  odi:  {label:"Oswestry (ODI)", unit:"%", min:0, max:100, dir:-1, mcid:10, groups:["LOMBER"], get:a=>num(a.odi_raw)==null?null:num(a.odi_raw)/50*100},
+  ndi:  {label:"Boyun Özürlülük İnd. (NDI)", unit:"%", min:0, max:100, dir:-1, mcid:15, groups:["SERVIKAL"], get:a=>num(a.ndi_raw)==null?null:num(a.ndi_raw)/50*100},
+  csaR: {label:"CSA L4–L5 sağ", unit:"cm²", dir:1, groups:["LOMBER"], dg:2, get:a=>num(a.l4r)},
+  csaL: {label:"CSA L4–L5 sol", unit:"cm²", dir:1, groups:["LOMBER"], dg:2, get:a=>num(a.l4l)},
+  asym: {label:"CSA asimetrisi L4–L5", unit:"%", min:0, dir:-1, groups:["LOMBER"], get:a=>asym(num(a.l4r),num(a.l4l))},
+  ccsaR:{label:"CSA C5–C6 sağ", unit:"cm²", dir:1, groups:["SERVIKAL"], dg:2, get:a=>num(a.c5r)},
+  ccsaL:{label:"CSA C5–C6 sol", unit:"cm²", dir:1, groups:["SERVIKAL"], dg:2, get:a=>num(a.c5l)},
+  casym:{label:"CSA asimetrisi C5–C6", unit:"%", min:0, dir:-1, groups:["SERVIKAL"], get:a=>asym(num(a.c5r),num(a.c5l))},
+  ratio:{label:"Kontraksiyon oranı", unit:"×", dir:1, groups:["LOMBER","SERVIKAL"], dg:2, get:a=>(num(a.rest_mm)&&num(a.contr_mm)!=null)?num(a.contr_mm)/num(a.rest_mm):null},
+  ccft: {label:"KSFT aktivasyon", unit:"mmHg", min:20, max:30, dir:1, groups:["SERVIKAL"], get:a=>num(a.ccft)},
+  rot:  {label:"Rotasyon toplam", unit:"°", min:0, dir:1, groups:["SERVIKAL"], dg:0, get:a=>(num(a.rotR)==null||num(a.rotL)==null)?null:num(a.rotR)+num(a.rotL)},
+};
+const metricsFor = g => Object.keys(M).filter(k => M[k].groups.includes(g));
+const DEFAULT_METRIC = {LOMBER:"odi", SERVIKAL:"ndi"};
+const GROUP_NAME = {LOMBER:"Bel (lomber)", SERVIKAL:"Boyun (servikal)"};
+const GROUP_TAG = {LOMBER:"BEL", SERVIKAL:"BOYUN"};
+
+// ---------- exercise library (reference content, not patient data)
+const EX_CATS = ["Stabilizasyon","Kuvvet","Mobilite","Germe","Sinir mobilizasyonu","Postür ve kontrol","Genel"];
+const LIB = [
+  // Bel
+  {id:"x-l1", g:"LOMBER", k:"Stabilizasyon", name:"Abdominal içe çekme (drawing-in)", dose:"10 tekrar × 10 sn tut", cue:"Nefes verirken göbeği omurgaya doğru hafifçe çek; pelvis ve göğüs kafesi hareketsiz."},
+  {id:"x-l2", g:"LOMBER", k:"Stabilizasyon", name:"Multifidus şişirme", dose:"10 tekrar × 10 sn tut", cue:"Yüzüstü veya yan yatışta, omurga yanındaki kası parmak altında şişir; ultrason biyofeedback ile."},
+  {id:"x-l3", g:"LOMBER", k:"Stabilizasyon", name:"Kuadrupedde kol–bacak kaldırma", dose:"2 set × 8 tekrar her taraf", cue:"Bel nötr, pelvis dönmeden karşı kol ve bacağı uzat; 5 sn tut."},
+  {id:"x-l8", g:"LOMBER", k:"Stabilizasyon", name:"Dead bug", dose:"2 set × 8 tekrar her taraf", cue:"Sırtüstü, bel yere yakın; karşı kol ve bacağı yavaşça uzat, nefesi tutma."},
+  {id:"x-l6", g:"LOMBER", k:"Stabilizasyon", name:"Sırtüstü topuk kaydırma", dose:"2 set × 10 tekrar", cue:"Abdominal kontrol korunurken bacağı uzat; pelvis sabit."},
+  {id:"x-l4", g:"LOMBER", k:"Kuvvet", name:"Köprü", dose:"2 set × 10 tekrar", cue:"Önce içe çekme, sonra kalçayı kaldır; bel çukuru artmasın."},
+  {id:"x-l9", g:"LOMBER", k:"Kuvvet", name:"Tek bacak köprü", dose:"2 set × 8 tekrar her taraf", cue:"Pelvis düşmeden kalçayı kaldır; zorlanırsa çift bacağa dön."},
+  {id:"x-l5", g:"LOMBER", k:"Kuvvet", name:"Modifiye yan köprü", dose:"3 tekrar × 15 sn her taraf", cue:"Dizler bükülü, omuz–kalça–diz aynı hatta."},
+  {id:"x-l10", g:"LOMBER", k:"Kuvvet", name:"Ön plank (dizler yerde)", dose:"3 tekrar × 20 sn", cue:"Omuz dirseğin üstünde, kalça düşmesin; ağrı olursa süreyi kısalt."},
+  {id:"x-l11", g:"LOMBER", k:"Kuvvet", name:"Yüzüstü bacak kaldırma", dose:"2 set × 10 tekrar her taraf", cue:"Karın altında yastık; bacağı diz düz, az bir açıyla kaldır, bel çukuru artmasın."},
+  {id:"x-l12", g:"LOMBER", k:"Kuvvet", name:"Duvarda çömelme", dose:"3 tekrar × 20 sn", cue:"Sırt duvarda, dizler ayak parmaklarını geçmesin."},
+  {id:"x-l13", g:"LOMBER", k:"Kuvvet", name:"Nötr omurgayla otur–kalk", dose:"2 set × 10 tekrar", cue:"Kalçadan katlan, bel düz; elleri kullanmadan kalk."},
+  {id:"x-l14", g:"LOMBER", k:"Kuvvet", name:"Pallof press (elastik bant)", dose:"2 set × 10 tekrar her yön", cue:"Bandı göğüsten öne it, gövde dönmesine izin verme."},
+  {id:"x-l7", g:"LOMBER", k:"Mobilite", name:"Kedi–deve", dose:"10 tekrar", cue:"Ağrısız aralıkta, yavaş ve nefesle uyumlu."},
+  {id:"x-l15", g:"LOMBER", k:"Mobilite", name:"Pelvik tilt", dose:"2 set × 10 tekrar", cue:"Sırtüstü dizler bükülü; beli yere yaklaştırıp bırak."},
+  {id:"x-l16", g:"LOMBER", k:"Mobilite", name:"Yüzüstü doğrulma (press-up)", dose:"10 tekrar", cue:"Kalça yerde kalsın; bacağa yayılan ağrı artarsa dur."},
+  {id:"x-l17", g:"LOMBER", k:"Mobilite", name:"Sırtüstü gövde rotasyonu", dose:"10 tekrar her yön", cue:"Dizler birlikte yana düşsün, omuzlar yerde."},
+  {id:"x-l18", g:"LOMBER", k:"Germe", name:"Hamstring germe", dose:"3 tekrar × 30 sn her taraf", cue:"Sırtüstü, havlu ile bacağı kaldır; dizin arkasında hafif gerilme yeterli."},
+  {id:"x-l19", g:"LOMBER", k:"Germe", name:"Piriformis germe", dose:"3 tekrar × 30 sn her taraf", cue:"Sırtüstü, ayak bileği karşı dizin üstünde; dizi göğse çek."},
+  {id:"x-l20", g:"LOMBER", k:"Germe", name:"Kalça fleksör germe", dose:"3 tekrar × 30 sn her taraf", cue:"Yarım diz çökme; pelvisi geriye devir, bele kaçırma."},
+  {id:"x-l21", g:"LOMBER", k:"Sinir mobilizasyonu", name:"Siyatik sinir kaydırma", dose:"10 tekrar her taraf", cue:"Oturarak, baş öne eğilirken diz bükülü, baş kalkarken diz düzelir; gerdirme değil kaydırma."},
+  // Boyun
+  {id:"x-c1", g:"SERVIKAL", k:"Stabilizasyon", name:"Kraniyoservikal fleksiyon eğitimi", dose:"10 tekrar × 10 sn, hedef basınçta", cue:"Basınç biyofeedback 20 mmHg; çeneyi hafif içeri al, yüzeyel fleksörler gevşek."},
+  {id:"x-c3", g:"SERVIKAL", k:"Stabilizasyon", name:"Kuadrupedde servikal ekstansiyon", dose:"2 set × 10 tekrar", cue:"Kraniyoservikal nötr korunarak alt servikalden ekstansiyon; multifidus hedefli."},
+  {id:"x-c7", g:"SERVIKAL", k:"Stabilizasyon", name:"Derin boyun fleksör dayanıklılığı", dose:"5 tekrar, tutabildiğin kadar", cue:"Sırtüstü, çene içeride başı 2–3 cm kaldır; çene öne kaçınca bırak."},
+  {id:"x-c4", g:"SERVIKAL", k:"Kuvvet", name:"İzometrik rotasyon", dose:"5 tekrar × 10 sn her yön", cue:"El yanakta, %20–30 kuvvetle karşı koy."},
+  {id:"x-c8", g:"SERVIKAL", k:"Kuvvet", name:"İzometrik ekstansiyon", dose:"5 tekrar × 10 sn", cue:"Eller başın arkasında; baş hareket etmeden hafifçe geriye it."},
+  {id:"x-c9", g:"SERVIKAL", k:"Kuvvet", name:"Elastik bantla kürek çekme", dose:"2 set × 12 tekrar", cue:"Dirsekler gövdeye yakın; kürek kemiklerini geri ve aşağı topla."},
+  {id:"x-c10", g:"SERVIKAL", k:"Kuvvet", name:"Yüzüstü Y–T", dose:"2 set × 8 tekrar", cue:"Alın havlu üstünde; kolları Y ve T şeklinde kaldır, boyun nötr."},
+  {id:"x-c2", g:"SERVIKAL", k:"Mobilite", name:"Oturarak servikal retraksiyon", dose:"10 tekrar × 5 sn", cue:"Başı geriye kaydır, aşağı bakma; ağrı artarsa aralığı küçült."},
+  {id:"x-c11", g:"SERVIKAL", k:"Mobilite", name:"Havluyla rotasyon (self-SNAG)", dose:"6 tekrar her yön", cue:"Havlu ağrılı seviyenin altında; havluyla destekleyerek başı ağrısız aralıkta çevir."},
+  {id:"x-c12", g:"SERVIKAL", k:"Mobilite", name:"Torakal ekstansiyon (havlu rulo)", dose:"10 tekrar", cue:"Rulo kürek kemiklerinin altında; eller ensede, geriye doğru aç."},
+  {id:"x-c13", g:"SERVIKAL", k:"Germe", name:"Üst trapez germe", dose:"3 tekrar × 30 sn her taraf", cue:"Kulak omza doğru; karşı omuz aşağıda kalsın."},
+  {id:"x-c14", g:"SERVIKAL", k:"Germe", name:"Levator skapula germe", dose:"3 tekrar × 30 sn her taraf", cue:"Burun koltuk altına doğru; elle hafif yardım."},
+  {id:"x-c15", g:"SERVIKAL", k:"Sinir mobilizasyonu", name:"Median sinir kaydırma", dose:"10 tekrar", cue:"Kol yanda, el bileği geriye giderken baş aynı tarafa eğilir; karıncalanma artarsa azalt."},
+  {id:"x-c5", g:"SERVIKAL", k:"Postür ve kontrol", name:"Skapular retraksiyon ve depresyon", dose:"2 set × 10 tekrar", cue:"Omuz kuşağını geri ve aşağı al; boynu kasma."},
+  {id:"x-c6", g:"SERVIKAL", k:"Postür ve kontrol", name:"Göz–baş koordinasyonu", dose:"5 tekrar her yön", cue:"Gözü hedefe sabitle, baş yavaşça dönsün."},
+  {id:"x-c16", g:"SERVIKAL", k:"Postür ve kontrol", name:"Pozisyon algısı (lazer ile hedef)", dose:"5 tekrar her yön", cue:"Başa takılı lazerle gözler kapalı başlangıç noktasına dön."},
+  // Ortak
+  {id:"x-g1", g:"ORTAK", k:"Genel", name:"Yürüyüş", dose:"20–30 dk", cue:"Konuşabilecek tempoda; süre haftalık artırılır."},
+  {id:"x-g2", g:"ORTAK", k:"Genel", name:"Diyafragmatik solunum", dose:"5 dk", cue:"Sırtüstü, el karında; omuzlar gevşek."},
+  {id:"x-g3", g:"ORTAK", k:"Postür ve kontrol", name:"Masa başı mola rutini", dose:"Her 45 dakikada 2 dk", cue:"Kalk, omuzları geri al, çeneyi içeri al, birkaç adım yürü."},
+];
+// ---------- ICF (kategoriler bel ve boyun ağrısı çekirdek setlerinden seçildi; liste düzenlenebilir)
+const ICF_COMP = {b:"Vücut fonksiyonları", s:"Vücut yapıları", d:"Aktivite ve katılım", e:"Çevresel faktörler"};
+const ICF_CODES = [
+  {c:"b130",t:"Enerji ve dürtü",g:"ORTAK"},{c:"b134",t:"Uyku",g:"ORTAK"},{c:"b152",t:"Duygusal işlevler",g:"ORTAK"},
+  {c:"b260",t:"Propriosepsiyon",g:"SERVIKAL"},{c:"b280",t:"Ağrı duyusu",g:"ORTAK",link:"nrs"},{c:"b455",t:"Egzersiz toleransı",g:"ORTAK"},
+  {c:"b710",t:"Eklem hareketliliği",g:"ORTAK",link:"rot"},{c:"b715",t:"Eklem stabilitesi",g:"ORTAK"},{c:"b730",t:"Kas gücü",g:"ORTAK"},
+  {c:"b740",t:"Kas enduransı",g:"ORTAK",link:"ccft"},{c:"b760",t:"İstemli hareket kontrolü",g:"ORTAK",link:"ratio"},
+  {c:"s710",t:"Baş ve boyun bölgesi yapısı",g:"SERVIKAL"},{c:"s760",t:"Gövde yapısı",g:"LOMBER"},{c:"s120",t:"Omurilik ve ilgili yapılar",g:"ORTAK"},
+  {c:"d410",t:"Temel vücut pozisyonunu değiştirme",g:"ORTAK"},{c:"d415",t:"Vücut pozisyonunu sürdürme",g:"ORTAK"},{c:"d430",t:"Kaldırma ve taşıma",g:"ORTAK"},
+  {c:"d445",t:"El ve kol kullanımı",g:"SERVIKAL"},{c:"d450",t:"Yürüme",g:"LOMBER"},{c:"d475",t:"Araç kullanma",g:"ORTAK"},
+  {c:"d540",t:"Giyinme",g:"ORTAK"},{c:"d640",t:"Ev işleri",g:"ORTAK"},{c:"d850",t:"Ücretli iş",g:"ORTAK"},{c:"d920",t:"Rekreasyon ve boş zaman",g:"ORTAK"},
+  {c:"e110",t:"Kişisel kullanım ürünleri ve ilaçlar",g:"ORTAK"},{c:"e135",t:"İş yeri ürün ve teknolojileri",g:"ORTAK"},{c:"e310",t:"Yakın aile",g:"ORTAK"},
+  {c:"e355",t:"Sağlık profesyonelleri",g:"ORTAK"},{c:"e410",t:"Aile üyelerinin tutumları",g:"ORTAK"},{c:"e580",t:"Sağlık hizmetleri",g:"ORTAK"},
+];
+const ICF_Q = [["","—"],["0","0 · sorun yok"],["1","1 · hafif"],["2","2 · orta"],["3","3 · ağır"],["4","4 · tam"],["8","8 · belirtilmemiş"],["9","9 · uygulanamaz"]];
+const ICF_E = [["","—"],["+4","+4 tam kolaylaştırıcı"],["+3","+3"],["+2","+2"],["+1","+1"],["0","0 · etkisiz"],["1","1 engel"],["2","2"],["3","3"],["4","4 tam engel"],["8","8 · belirtilmemiş"]];
+const icfFor = p => ICF_CODES.filter(x=>x.g==="ORTAK"||x.g===p.group);
+const icfName = c => ICF_CODES.find(x=>x.c===c)?.t || "";
+const FREQS = ["Günde 1","Günde 2","Günde 3","Haftada 3","Haftada 5","Her gün"];
+const weekStart = d => { const x=new Date((d||today())+"T12:00:00"); const k=(x.getDay()+6)%7; x.setDate(x.getDate()-k); return x.toISOString().slice(0,10); };
+
+// ---------- state
+const S = { view:"ajanda", libTab:"egzersiz", pubFilter:"AKTIF", sel:null, filter:"ALL", metric:{}, sheet:null, confirm:null,
+  patients:[], studies:[], students:[], customEx:[], loaded:false, db:null, base:null, persist:"pending",
+  studySel:null, resMetric:null, csvText:null, stuSel:null, tfilter:"OZEL", exFilter:"ALL", pubs:[], exMedia:{}, assets:null, busy:false };
+const demo = () => false;
+const P = () => S.patients;
+const ST = () => S.studies;
+const STU = () => S.students;
+const STAGES = ["Ders dönemi","Yeterlik","Tez önerisi","Etik kurul","Veri toplama","Analiz","Yazım","Savunma","Mezun"];
+const isEx = p => p && p.id.startsWith("p-ex");
+
+// ---------- storage
+const queues = {};
+function save(id, body){
+  if(!S.db) return Promise.resolve();
+  const ref = S.db.collection(S.base).doc(id);
+  queues[id] = (queues[id]||Promise.resolve()).then(() => body===null ? ref.delete() : ref.set(body))
+    .catch(e => { if(e && e.code==="invalid_argument"){ S.readonly=true; render(); toast("Kaydedilemedi: bu bağlantı yalnızca görüntüleme izni veriyor."); return; }
+      toast(e && e.code==="quota_exceeded" ? "Depolama dolu: eski kayıtları silin." : "Kaydedilemedi, tekrar deneyin."); });
+  return queues[id];
+}
+function upsertPatient(p){ const i=S.patients.findIndex(x=>x.id===p.id); if(i<0) S.patients.push(p); else S.patients[i]=p; save(p.id, p); }
+function upsertPub(x){ const i=S.pubs.findIndex(y=>y.id===x.id); if(i<0) S.pubs.push(x); else S.pubs[i]=x; save(x.id, x); }
+function upsertStudent(s){ const i=S.students.findIndex(x=>x.id===s.id); if(i<0) S.students.push(s); else S.students[i]=s; save(s.id, s); }
+function saveMeta(){ save("meta", {kind:"meta", studies:S.studies, customEx:S.customEx, exMedia:S.exMedia, hiddenEx:S.hiddenEx||[]}); }
+
+async function init(){
+  render();
+  let db=null, user=null;
+  try { if(window.__LOCAL){ [db,user] = await Promise.all([__LOCAL.use("db"), __LOCAL.use("user")]); } } catch(e){}
+  const uid = user ? await user.id().catch(()=>null) : null;
+  if(!db || !uid){ S.persist="off"; S.loaded=true; render(); return; }
+  S.db=db; S.base="data/users/"+uid; S.persist="on";
+  try{ const cw = user.can ? await user.can("data.write") : null; if(cw===false) S.readonly=true; }catch(e){}
+  db.collection(S.base).onSnapshot(snap => {
+    const pats=[], stus=[], pubs=[]; let meta=null;
+    snap.docs.forEach(d => { const b=d.data(); if(!b) return; const c=()=>JSON.parse(JSON.stringify(b));
+      if(b.kind==="meta") meta=b; else if(b.kind==="patient") pats.push(c()); else if(b.kind==="student") stus.push(c()); else if(b.kind==="pub") pubs.push(c()); });
+    pats.sort((a,b)=>a.code.localeCompare(b.code,"tr")); stus.sort((a,b)=>a.name.localeCompare(b.name,"tr"));
+    S.patients=pats; S.students=stus; S.pubs=pubs; S.studies=meta?.studies ? JSON.parse(JSON.stringify(meta.studies)) : S.studies; S.customEx=meta?.customEx ? JSON.parse(JSON.stringify(meta.customEx)) : S.customEx; S.exMedia=meta?.exMedia ? JSON.parse(JSON.stringify(meta.exMedia)) : S.exMedia; S.hiddenEx=meta?.hiddenEx ? [...meta.hiddenEx] : (S.hiddenEx||[]);
+    S.loaded=true; render();
+  }, () => { S.persist="off"; S.loaded=true; render(); });
+}
+
+
+// ---------- render
+function renderTabs(){
+  const t=[["ajanda","Ajanda"],["hastalar","Hastalar"],["egzersiz","Egzersizler"],["ogrenciler","Öğrenciler"]];
+  if(window.__LOCAL) t.push(["__backup","Yedek"]);
+  $("#tabs").innerHTML = t.map(([k,l])=>`<button class="tab" role="tab" data-act="view" data-v="${k}" aria-selected="${S.view===k}">${l}</button>`).join("");
+}
+function banner(){
+  if(S.persist==="off") return `<div class="banner"><span class="sp"><b>Kayıt kapalı.</b> Bu görünümde veriler saklanamıyor; sayfa kapanınca girdileriniz kaybolur. Defteri claude.ai'de oturum açarak kullanın.</span></div>`;
+  if(S.readonly) return `<div class="banner"><span class="sp"><b>Yalnızca görüntüleme.</b> Bu bağlantı kayıt yapma izni vermiyor. Defteri paylaşan kişiden “düzenleyebilir” izinli bağlantı isteyin.</span></div>`;
+  if(window.__LOCAL && (S.patients.length||S.students.length) && !hasDemo()){
+    const lb=window.__LOCAL.lastBackup(); const days = lb ? Math.floor((Date.now()-new Date(lb))/864e5) : null;
+    if(days==null || days>=30) return `<div class="banner"><span class="sp"><b>${days==null?"Henüz yedek alınmadı.":`Son yedek ${days} gün önce.`}</b> Veriler yalnızca bu bilgisayardaki tarayıcıda duruyor. Ayda bir yedek almanız önerilir.</span><button class="btn primary" data-act="doBackup">Yedeği indir</button></div>`;
+  }
+  if(hasDemo()) return `<div class="banner"><span class="sp"><b>Örnek veriler yüklü.</b> Kod adı “ÖRNEK” ile başlayan hastalar ve öğrenciler tanıtım içindir, gerçek kişiler değildir. Gerçek kullanıma geçmeden silin.</span><button class="btn" data-act="clearDemo">Örnekleri sil</button></div>`;
+  return "";
+}
+function render(){
+  renderTabs();
+  const app=$("#app");
+  if(!S.loaded && S.persist==="pending"){ app.innerHTML=`<div class="empty">Defter açılıyor…</div>`; return; }
+  app.innerHTML = banner() + ({ajanda:viewAgenda, hastalar:viewPatients, egzersiz:viewLibrary, ogrenciler:viewStudents, arastirma:viewResearch, rehber:viewGuide}[S.view]||viewAgenda)();
+  renderSheet();
+}
+
+function ownerLabel(p){
+  if((p.type||"POSTOP")==="OZEL") return "Özel hasta";
+  const s=S.students.find(x=>x.id===p.owner);
+  return s ? `Klinik · ${esc(s.name)}` : "Klinik · cerrahi sonrası";
+}
+const hasDemo = () => S.patients.some(p=>p.demo) || S.students.some(x=>x.demo);
+const plus = n => { const x=new Date(today()+"T12:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+function loadDemo(){
+  const stj={id:"s-demo1",kind:"student",demo:true,name:"ÖRNEK Stajyer",level:"Stajyer",topic:"Güz dönemi klinik stajı",log:[]};
+  const yl={id:"s-demo2",kind:"student",demo:true,name:"ÖRNEK Tez Öğrencisi",level:"YL",stage:"Veri toplama",start:plus(-390),topic:"Servikal radikülopatide KSFT eğitiminin multifidus kalınlığına etkisi",
+    nextMeet:plus(3),deadline:plus(16),deadlineNote:"TİK raporu",log:[{date:plus(-7),text:"Kontrol grubunda 6/15 hasta tamamlandı."}]};
+  const prog=(items,adh)=>({items:items.map((x,i)=>({id:"di"+i,exId:x[0],name:LIB.find(l=>l.id===x[0]).name,dose:x[1],freq:x[2],start:plus(-28)})),adherence:adh});
+  const w=n=>weekStart(plus(-7*n));
+  const p1={id:"p-demo1",kind:"patient",demo:true,code:"ÖRNEK-B1",group:"SERVIKAL",type:"OZEL",pkg:10,dx:"C5–C6 radikülopati",sex:"K",age:44,
+    nextAppt:{date:plus(2),time:"15:00"},sessions:[0,1,2,3,4,5].map(i=>({id:"ds"+i,date:plus(-26+i*5),text:i===0?"İlk değerlendirme, KSFT öğretildi":"Manuel terapi + KSFT eğitimi, ev programı kontrol edildi"})),
+    assessments:[{id:"da1",date:plus(-28),visit:"İlk değerlendirme",nrs:7,ndi_raw:23,c5r:1.04,c5l:0.82,rest_mm:9.6,contr_mm:10.2,goutallier:1,ccft:22,ccft_pi:10,flex:38,ext:44,rotR:56,rotL:47},
+      {id:"da2",date:plus(-3),visit:"4. seans",nrs:3,ndi_raw:11,c5r:1.05,c5l:0.95,rest_mm:9.7,contr_mm:11.3,goutallier:1,ccft:26,ccft_pi:50,flex:46,ext:55,rotR:64,rotL:61}],
+    icf:[{id:"di1",date:plus(-28),r:{b280:"3",b710:"2",b740:"2",d415:"3",d475:"2",e355:"+2"},extra:[],pf:"Bankacı, günde 8 saat ekran başında",goal:"Ağrısız 1 saat masa başı çalışma (d415)"},
+      {id:"di2",date:plus(-3),r:{b280:"1",b710:"1",b740:"1",d415:"1",d475:"1",e355:"+3"},extra:[],pf:"Bankacı, günde 8 saat ekran başında",goal:"Ağrısız 1 saat masa başı çalışma (d415)"}],
+    program:prog([["x-c1","10 tekrar × 10 sn, 24 mmHg","Günde 2"],["x-c2","10 tekrar × 5 sn","Günde 3"],["x-c13","3 × 30 sn","Günde 1"]],[{week:w(3),done:9,target:14},{week:w(2),done:12,target:14},{week:w(1),done:13,target:14}])};
+  const p2={id:"p-demo2",kind:"patient",demo:true,code:"ÖRNEK-L1",group:"LOMBER",type:"OZEL",pkg:8,dx:"Kronik bel ağrısı, L4–L5 disk dejenerasyonu",sex:"E",age:52,
+    nextAppt:{date:plus(4),time:"10:30"},sessions:[{id:"dt0",date:plus(-10),text:"İlk değerlendirme, multifidus aktivasyonu US biofeedback ile"}],
+    assessments:[{id:"db1",date:plus(-10),visit:"İlk değerlendirme",nrs:6,odi_raw:19,l4r:7.4,l4l:6.0,rest_mm:28,contr_mm:30,goutallier:2}],
+    program:prog([["x-l1","10 × 10 sn","Günde 2"],["x-l2","10 × 10 sn","Günde 2"],["x-l3","2 × 8","Günde 1"]],[{week:w(1),done:6,target:14}])};
+  const p3={id:"p-demo3",kind:"patient",demo:true,code:"ÖRNEK-K1",group:"LOMBER",type:"POSTOP",owner:"s-demo1",dx:"L5–S1 mikrodiskektomi sonrası",surgery:"Mikrodiskektomi",surgeryDate:plus(-40),assessments:[{id:"dc1",date:plus(-30),visit:"Post-op 2. hafta",nrs:5,odi_raw:22}]};
+  [stj,yl].forEach(upsertStudent); [p1,p2,p3].forEach(upsertPatient);
+  S.sel="p-demo1"; S.view="ajanda"; render(); toast("Örnek veriler yüklendi.");
+}
+function clearDemo(){
+  S.patients.filter(p=>p.demo).forEach(p=>save(p.id,null)); S.students.filter(x=>x.demo).forEach(x=>save(x.id,null));
+  S.patients=S.patients.filter(p=>!p.demo); S.students=S.students.filter(x=>!x.demo); S.sel=null; S.stuSel=null; render(); toast("Örnek veriler silindi.");
+}
+async function doBackup(){
+  if(!window.__LOCAL) return;
+  const body=JSON.stringify({app:"omurga-defteri", version:1, created:new Date().toISOString(), docs:window.__LOCAL.dump()}, null, 1);
+  const dl=await window.__LOCAL.use("downloads"); await dl.save({filename:`omurga-defteri-yedek-${today()}.json`, data:body});
+  window.__LOCAL.markBackup(); render(); toast("Yedek indirildi; dosyayı güvenli bir yerde saklayın.");
+}
+function readRestore(file){
+  if(!file) return; const r=new FileReader();
+  r.onload=()=>{ try{ const j=JSON.parse(r.result); if(j.app!=="omurga-defteri"||!j.docs||typeof j.docs!=="object") throw 0;
+      const v=Object.values(j.docs); S.restoreData={docs:j.docs, np:v.filter(x=>x&&x.kind==="patient").length, ns:v.filter(x=>x&&x.kind==="student").length}; renderSheet();
+    }catch(e){ toast("Bu dosya defterin yedek dosyası değil."); } };
+  r.readAsText(file);
+}
+function welcome(){
+  return `<div class="panel welcome"><h2>Defter hazır.</h2>
+    <p>Her şey boş başlıyor; doldurdukça şekillenir.</p>
+    <ol>
+      <li><b>Özel hastalar:</b> + Hasta ile kodla kaydedin, bölgesini seçin. Değerlendirme, ICF, seans ve sonraki randevu hasta sayfasında.</li>
+      <li><b>Egzersiz:</b> hastaya kütüphaneden program kurun, PDF reçeteyi verin, her hafta yapılan seansı işaretleyin.</li>
+      <li><b>Öğrenciler:</b> tez öğrencilerinin aşaması ve görüşmeleri; stajyerlerin klinik hastaları Salı kliniği kartında özetlenir.</li>
+    </ol>
+    <div class="actions"><button class="btn primary" data-act="newPatient">İlk hastayı ekle</button><button class="btn" data-act="newStu">Öğrenci ekle</button><button class="btn ghost" data-act="loadDemo">Önce örnek verilerle dene</button></div></div>`;
+}
+function icfPanel(p){
+  const prof=[...(p.icf||[])].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!prof.length) return `<div class="panel"><div class="panel-h"><h3>ICF profili</h3><button class="btn" data-act="newIcf" data-id="${p.id}">+ ICF değerlendirmesi</button></div>
+    <p class="hint">Bel veya boyun çekirdek setinden seçilmiş kategorilerle hastanın fonksiyonel profilini çıkarın; tekrarlandığında değişim yan yana görünür.</p></div>`;
+  const first=prof[0], last=prof[prof.length-1];
+  const codes=[...new Set([first,last].flatMap(pr=>[...Object.keys(pr.r||{}), ...(pr.extra||[]).map(x=>x.c)]))];
+  const val=(pr,c)=>{ const r=pr.r?.[c]; if(r!=null&&r!=="") return r; return (pr.extra||[]).find(x=>x.c===c)?.q ?? ""; };
+  const name=(c)=>icfName(c)||([...(last.extra||[]),...(first.extra||[])].find(x=>x.c===c)?.t)||"";
+  const groups=["b","s","d","e"].map(k=>({k, rows:codes.filter(c=>c[0]===k).sort()})).filter(g=>g.rows.length);
+  const cell=(q,k)=>{ if(q===""||q==null) return `<span class="hint">—</span>`; if(q==="8"||q==="9") return `<span class="hint mono">${q}</span>`;
+    const n = k==="e" ? (String(q).startsWith("+")?-(+q.slice(1)):+q) : +q;
+    const cls = n<0?"fac":n===0?"q0":n<=1?"q1":n<=2?"q2":"q3";
+    const w = Math.abs(n)*25;
+    return `<span class="qbar"><span class="qf ${cls}" style="width:${Math.max(w,4)}%"></span></span><span class="mono qv">${esc(q)}</span>`; };
+  const rows=groups.map(g=>`<tr class="comp"><td colspan="${prof.length>1?4:2}">${ICF_COMP[g.k]}</td></tr>`+g.rows.map(c=>{
+      const a=val(first,c), b=val(last,c);
+      const ch = prof.length>1 && a!==""&&b!==""&&!["8","9"].includes(a)&&!["8","9"].includes(b) ? (()=>{ const na=g.k==="e"?(String(a).startsWith("+")?-(+a.slice(1)):+a):+a, nb=g.k==="e"?(String(b).startsWith("+")?-(+b.slice(1)):+b):+b; const d=nb-na; if(g.k==="e"){ const f=-d; return f>0?`<span class="delta good">+${f} kolaylaştırıcı</span>`:f<0?`<span class="delta bad">${f}</span>`:`<span class="delta flat">0</span>`; } return d<0?`<span class="delta good">${d}</span>`:d>0?`<span class="delta bad">+${d}</span>`:`<span class="delta flat">0</span>`; })() : "";
+      return `<tr><td><span class="mono">${esc(c)}</span> <span class="icfn">${esc(name(c))}</span></td>${prof.length>1?`<td class="qc">${cell(a,g.k)}</td>`:""}<td class="qc">${cell(b,g.k)}</td>${prof.length>1?`<td class="num">${ch}</td>`:""}</tr>`; }).join("")).join("");
+  return `<div class="panel"><div class="panel-h"><h3>ICF profili</h3><div class="actions">
+      <button class="btn" data-act="editIcf" data-id="${p.id}" data-a="${last.id}">Son profili düzenle</button><button class="btn primary" data-act="newIcf" data-id="${p.id}">+ ICF değerlendirmesi</button></div></div>
+    <div class="tbl-wrap"><table class="icf"><thead><tr><th>Kategori</th>${prof.length>1?`<th>${shortDate(first.date)}</th>`:""}<th>${shortDate(last.date)}</th>${prof.length>1?`<th class="num">Değişim</th>`:""}</tr></thead><tbody>${rows}</tbody></table></div>
+    ${last.pf?`<p class="icfpf"><span class="label">Kişisel faktörler</span> ${esc(last.pf)}</p>`:""}
+    ${last.goal?`<p class="icfpf"><span class="label">Hedef</span> ${esc(last.goal)}</p>`:""}
+    <p class="hint">Niteleyici 0 sorun yok – 4 tam sorun. Çevresel faktörlerde + kolaylaştırıcı, düz sayı engeldir. ${prof.length} ICF değerlendirmesi; ilk ve son karşılaştırılıyor.</p></div>`;
+}
+const DAYS=["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+const dayName = d => DAYS[new Date(d+"T12:00:00").getDay()];
+function sessPanel(p){
+  const ss=[...(p.sessions||[])].sort((a,b)=>b.date.localeCompare(a.date));
+  const ap=p.nextAppt||{}; const n=daysTo(ap.date);
+  const left = p.pkg ? p.pkg-ss.length : null;
+  return `<div class="panel"><div class="panel-h"><h3>Seanslar</h3>
+      <span class="sescount"><span class="mono">${ss.length}${p.pkg?" / "+p.pkg:""}</span> <span class="hint">${p.pkg?(left>0?`seans · ${left} kaldı`:left===0?"seans · paket bitti":`seans · paket ${-left} aşıldı`):"seans"}</span></span></div>
+    <div class="appt"><div><div class="label">Sonraki randevu</div>
+        <div class="apptv">${ap.date?`${fmtDate(ap.date)} ${esc(dayName(ap.date))}${ap.time?" · "+esc(ap.time):""} <span class="delta ${n<0?"bad":"flat"}">${dueTxt(n)}</span>`:`<span class="hint">Girilmedi</span>`}</div></div>
+      <form class="adhform" id="apptForm" data-id="${p.id}"><input name="date" type="date" value="${esc(ap.date||"")}" aria-label="Randevu tarihi"><input name="time" type="time" value="${esc(ap.time||"")}" aria-label="Saat"><button class="btn" type="submit">Kaydet</button></form></div>
+    <form class="logform" id="sessForm" data-id="${p.id}" style="margin-top:12px"><input name="date" type="date" value="${today()}" aria-label="Seans tarihi"><input name="text" placeholder="Seansta ne yapıldı, nasıl tepki verdi?"><button class="btn primary" type="submit">Seans ekle</button></form>
+    ${ss.length?`<ul class="log">${ss.slice(0, S.allSess===p.id?ss.length:3).map((x,i)=>`<li><span class="mono hint">${ss.length-i}. · ${fmtDate(x.date)}</span><span>${esc(x.text||"")}</span></li>`).join("")}</ul>
+      ${ss.length>3?`<button class="rowbtn" data-act="allSess" data-id="${p.id}" style="padding-left:0;margin-top:6px">${S.allSess===p.id?"Daha az göster":`Tüm seansları göster (${ss.length})`}</button>`:""}`:`<p class="hint">Henüz seans girilmedi.</p>`}
+  </div>`;
+}
+const safeLink = u => /^https?:\/\//i.test(u||"") ? u : "";
+function mediaHtml(id, compact){
+  const m=S.exMedia[id]; if(!m) return "";
+  if(m.assetId) return compact ? `<button class="rowbtn" data-act="play" data-x="${esc(id)}">▶ Video</button>` : `<video class="exvid" controls preload="metadata" playsinline src="/_blob/${esc(m.assetId)}"></video>`;
+  const u=safeLink(m.link); return u ? `<a class="rowbtn vlink" href="${esc(u)}" target="_blank" rel="noopener">▶ Videoyu aç</a>` : "";
+}
+function allEx(){ return [...LIB, ...(S.customEx||[])]; }
+const visEx = () => allEx().filter(x=>!(S.hiddenEx||[]).includes(x.id));
+function exPanel(p){
+  const prog=p.program||{items:[],adherence:[]};
+  const items=prog.items||[]; const adh=[...(prog.adherence||[])].sort((a,b)=>a.week.localeCompare(b.week));
+  const lastT = adh.length ? adh[adh.length-1].target : 14;
+  const recent = adh.slice(-10);
+  const pct = a => a.target>0 ? Math.min(100, Math.round(a.done/a.target*100)) : 0;
+  const avg = adh.length ? Math.round(mean(adh.map(pct))) : null;
+  const rows = items.map((it,i)=>{ const ended = it.end && it.end < today();
+    return `<li class="exi ${ended?"ended":""}"><span class="exn mono">${i+1}</span><div class="exb"><b>${esc(it.name)}</b>
+      <span class="hint">${esc(it.dose||"")}${it.freq?" · "+esc(it.freq):""}${it.start?" · "+fmtDate(it.start)+" başlangıç":""}${ended?" · bitti":""}</span>
+      ${it.note?`<span class="exnote">${esc(it.note)}</span>`:""}${it.exId?`<span>${mediaHtml(it.exId,true)}</span>`:""}</div><button class="rowbtn" data-act="editEx" data-id="${p.id}" data-x="${it.id}">Düzenle</button></li>`; }).join("");
+  const bars = recent.map(a=>{ const v=pct(a); return `<div class="bar" title="${esc(fmtDate(a.week))} haftası: ${a.done}/${a.target}">
+      <span class="bv mono">${v}</span><span class="bt"><span class="bf ${v>=80?"hi":v>=50?"mid":"lo"}" style="height:${Math.max(v,3)}%"></span></span><span class="bl mono">${esc(shortDate(a.week))}</span></div>`; }).join("");
+  return `<div class="panel"><div class="panel-h"><h3>Egzersiz programı</h3>
+      <div class="actions">${items.length?`<button class="btn" data-act="printProg" data-id="${p.id}">Reçete (PDF)</button><button class="btn" data-act="copyProg" data-id="${p.id}">Metni kopyala</button>`:""}<button class="btn primary" data-act="newEx" data-id="${p.id}">+ Egzersiz</button></div></div>
+    ${items.length?`<ol class="exlist">${rows}</ol>`:`<p class="hint">Henüz egzersiz yok. Kütüphaneden seçebilir ya da kendi egzersizinizi yazabilirsiniz.</p>`}
+    ${items.length?`<div class="adh">
+      <div class="adh-h"><div><div class="label">Haftalık uyum</div>${avg!=null?`<div class="adh-avg"><span class="mono">%${avg}</span> <span class="hint">ortalama, ${adh.length} hafta</span></div>`:`<div class="hint">Her hafta sonunda yapılan seans sayısını girin.</div>`}</div>
+        <form class="adhform" id="adhForm" data-id="${p.id}"><label class="hint" for="f-aw">Hafta</label><input id="f-aw" name="week" type="date" value="${weekStart()}">
+          <label class="hint" for="f-ad">Yapılan</label><input id="f-ad" name="done" type="number" min="0" inputmode="numeric" style="width:64px">
+          <span class="hint">/</span><input id="f-at" name="target" type="number" min="1" inputmode="numeric" value="${lastT}" style="width:64px" aria-label="Hedef seans">
+          <button class="btn" type="submit">Kaydet</button></form></div>
+      ${recent.length?`<div class="bars">${bars}</div>`:""}</div>`:""}
+  </div>`;
+}
+function progText(p){
+  const items=(p.program?.items||[]).filter(it=>!(it.end && it.end<today()));
+  const lines=[`Ev egzersiz programı · ${p.code} · ${fmtDate(today())}`,""];
+  items.forEach((it,i)=>{ const ex=allEx().find(x=>x.id===it.exId);
+    lines.push(`${i+1}. ${it.name}`, `   ${[it.dose,it.freq].filter(Boolean).join(" · ")}`);
+    const cue = it.note || ex?.cue; if(cue) lines.push(`   ${cue}`);
+    const lk = safeLink(S.exMedia[it.exId]?.link); if(lk) lines.push(`   Video: ${lk}`); lines.push(""); });
+  lines.push("Ağrı belirgin artarsa egzersizi bırakın ve fizyoterapistinize bildirin.");
+  return lines.join("\n");
+}
+// ---------- printable prescription (PDF)
+const loadScript = src => new Promise((ok,no)=>{ if(document.querySelector(`script[src="${src}"]`)) return ok(); const el=document.createElement("script"); el.src=src; el.onload=ok; el.onerror=()=>no(new Error("load")); document.head.appendChild(el); });
+async function printProgram(pid){
+  const p=S.patients.find(x=>x.id===pid); if(!p) return;
+  let dl=null; try{ dl=await __LOCAL.use("downloads"); }catch(e){}
+  if(!dl){ toast("Bu görünümde dosya indirilemiyor; “Metni kopyala”yı kullanın."); return; }
+  toast("Reçete hazırlanıyor…");
+  try{
+    await Promise.all([
+      loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"),
+      loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
+      loadScript("https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js")]);
+  }catch(e){ toast("PDF araçları yüklenemedi; bağlantıyı kontrol edip tekrar deneyin."); return; }
+  const items=(p.program?.items||[]).filter(it=>!(it.end && it.end<today()));
+  const qr = url => { try{ const q=qrcode(0,"M"); q.addData(url); q.make(); return q.createDataURL(4,0); }catch(e){ return ""; } };
+  const stage=document.createElement("div"); stage.className="rx-stage"; document.body.appendChild(stage);
+  const ap=p.nextAppt?.date ? fmtDate(p.nextAppt.date)+(p.nextAppt.time?" "+p.nextAppt.time:"") : "";
+  const blocks=[];
+  blocks.push(`<div class="rx-head"><div><div class="rx-t">Ev Egzersiz Programı</div><div class="rx-s">Prof. Dr. Sevil Bilgin · Fizyoterapi ve Rehabilitasyon</div></div>
+    <div class="rx-meta"><div>Tarih: <b>${fmtDate(today())}</b></div><div>Hasta kodu: <b>${esc(p.code)}</b></div></div></div>
+    <div class="rx-fields"><div>Ad Soyad: <span class="rx-line"></span></div><div>Bölge: <b>${esc(GROUP_NAME[p.group]||"")}</b></div>${ap?`<div>Kontrol: <b>${esc(ap)}</b></div>`:`<div>Kontrol: <span class="rx-line short"></span></div>`}</div>`);
+  items.forEach((it,i)=>{ const ex=allEx().find(x=>x.id===it.exId); const link=safeLink(S.exMedia[it.exId]?.link); const cue=[ex?.cue, it.note].filter(Boolean);
+    blocks.push(`<div class="rx-ex"><div class="rx-n">${i+1}</div><div class="rx-b"><div class="rx-name">${esc(it.name)}</div>
+      <div class="rx-dose">${esc([it.dose,it.freq].filter(Boolean).join(" · "))}</div>${cue.map(c=>`<div class="rx-cue">${esc(c)}</div>`).join("")}</div>
+      ${link?`<div class="rx-qr"><img src="${qr(link)}" alt=""><span>Videoyu izlemek için okutun</span></div>`:""}</div>`); });
+  const days=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+  blocks.push(`<div class="rx-track"><div class="rx-tt">Yaptığınız günleri işaretleyin</div><table><tr><th></th>${days.map(d=>`<th>${d}</th>`).join("")}</tr>
+    ${[1,2,3,4].map(w=>`<tr><td>${w}. hafta</td>${days.map(()=>`<td><span class="rx-box"></span></td>`).join("")}</tr>`).join("")}</table></div>
+    <div class="rx-foot"><div>Egzersiz sırasında ağrı belirgin artarsa, bacağa veya kola yayılırsa ya da uyuşma başlarsa egzersizi bırakın ve fizyoterapistinize haber verin.</div>
+    <div class="rx-sign">Fizyoterapist imza<span class="rx-line"></span></div></div>`);
+  stage.innerHTML = blocks.map(b=>`<div class="rx-block">${b}</div>`).join("");
+  try{
+    await Promise.all([...stage.querySelectorAll("img")].map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r;})));
+    if(document.fonts?.ready) await document.fonts.ready;
+    const {jsPDF}=window.jspdf; const pdf=new jsPDF({unit:"pt",format:"a4"});
+    const W=595.28, H=841.89, M=40, cw=W-2*M; let y=M;
+    for(const el of stage.querySelectorAll(".rx-block")){
+      const c=await html2canvas(el,{scale:2,backgroundColor:"#ffffff",logging:false});
+      const h=c.height*cw/c.width;
+      if(y+h>H-M && y>M){ pdf.addPage(); y=M; }
+      pdf.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",M,y,cw,h); y+=h+6;
+    }
+    const data=pdf.output("arraybuffer");
+    await dl.save({filename:`egzersiz-programi-${p.code}-${today()}.pdf`, data});
+    toast("Reçete indirildi; açıp yazdırabilirsiniz.");
+  }catch(e){ if(e?.code!=="declined") toast("PDF oluşturulamadı, tekrar deneyin."); }
+  finally{ stage.remove(); }
+}
+function copyText(t){
+  const box=()=>{ S.sheet={type:"copy",text:t}; S.confirm=null; render(); };
+  if(navigator.clipboard) navigator.clipboard.writeText(t).then(()=>toast("Kopyalandı; mesaja yapıştırabilirsiniz."),box); else box();
+}
+function viewPatients(){
+  const list = P().filter(p => (S.filter==="ALL" || p.group===S.filter) && (S.tfilter==="ALL" || (p.type||"POSTOP")===S.tfilter));
+  if(!S.sel || !P().some(p=>p.id===S.sel)) S.sel = list[0]?.id || null;
+  const sel = P().find(p=>p.id===S.sel);
+  const f = [["OZEL","Özel hastalar"],["POSTOP","Klinik (stajyer)"],["ALL","Tümü"]].map(([k,l])=>`<button class="chip" data-act="tfilter" data-v="${k}" aria-pressed="${S.tfilter===k}">${l}</button>`).join("")
+    + `<span style="width:8px"></span>` + [["ALL","Bel + boyun"],["LOMBER","Bel"],["SERVIKAL","Boyun"]].map(([k,l])=>`<button class="chip" data-act="filter" data-v="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join("");
+  const items = list.map(p=>`<button class="pitem" data-act="sel" data-id="${p.id}" aria-current="${p.id===S.sel}">
+      <span class="gtag ${p.group}">${GROUP_TAG[p.group]||esc(p.group)}</span><span class="code">${esc(p.code)}</span><span class="n">${p.assessments.length} değ.</span>
+      <span class="dx">${ownerLabel(p)} · ${esc(p.dx||"tanı girilmedi")}</span></button>`).join("");
+  return `<div class="grid">
+    <aside class="rail">
+      <div class="rail-h"><span class="label">Hastalar · ${list.length}</span><button class="btn primary" data-act="newPatient" ${demo()?"disabled":""}>+ Hasta</button></div>
+      <div class="filters">${f}</div>
+      ${list.length ? `<div class="plist">${items}</div>` : P().length ? `<div class="empty">Bu filtrede hasta yok.</div>` : `<div class="empty">Henüz hasta yok.<br><span class="hint">Hastaları ad yerine kodla kaydedin (örn. L-001 bel, B-001 boyun).</span></div>`}
+    </aside>
+    <section class="detail">${sel ? viewDetail(sel) : P().length ? `<div class="empty">Soldan bir hasta seçin.</div>` : welcome()}</section>
+  </div>`;
+}
+
+function viewDetail(p){
+  const as = [...p.assessments].sort((a,b)=>a.date.localeCompare(b.date));
+  const ms = metricsFor(p.group);
+  const mk = S.metric[p.id] && ms.includes(S.metric[p.id]) ? S.metric[p.id] : DEFAULT_METRIC[p.group];
+  const study = ST().find(s=>s.id===p.study);
+  const lock = demo() ? "disabled" : "";
+  const oc = ms.map(k => {
+    const m=M[k], vals=as.map(m.get).filter(v=>v!=null);
+    if(!vals.length) return "";
+    const first=vals[0], last=vals[vals.length-1], d=last-first;
+    const cls = vals.length<2||Math.abs(d)<1e-9 ? "flat" : (d*m.dir>0 ? "good":"bad");
+    const mc = (m.mcid && vals.length>1) ? `<span class="mcid ${d*m.dir>=m.mcid?"yes":"no"}" title="Minimal klinik önemli fark: ${m.mcid}">MKÖF ${d*m.dir>=m.mcid?"✓":"—"}</span>` : "";
+    return `<button class="oc" data-act="metric" data-id="${p.id}" data-v="${k}" aria-pressed="${k===mk}">
+      <span class="k">${m.label}</span><span class="v">${fmt(last,m.dg||1)} <small>${m.unit}</small></span>
+      <span class="delta ${cls}">${vals.length>1?(d>0?"+":"")+fmt(d,m.dg||1)+" başlangıca göre":"tek ölçüm"}${mc}</span></button>`;
+  }).join("");
+  const aisStrip = "";
+  const rows = as.map(a => {
+    const wk = weeksPost(p.surgeryDate, a.date);
+    const cells = p.group==="LOMBER"
+      ? [fmt(M.nrs.get(a),0), fmt(M.odi.get(a)), fmt(num(a.l4r),2)+" / "+fmt(num(a.l4l),2), fmt(M.asym.get(a)), fmt(M.ratio.get(a),2), a.goutallier??"—"]
+      : [fmt(M.nrs.get(a),0), fmt(M.ndi.get(a)), fmt(num(a.c5r),2)+" / "+fmt(num(a.c5l),2), fmt(M.ratio.get(a),2), fmt(M.ccft.get(a),0), fmt(num(a.rotR),0)+" / "+fmt(num(a.rotL),0)];
+    return `<tr><td>${fmtDate(a.date)}</td><td>${esc(a.visit||"")}${wk!=null?` <span class="hint mono">${wk>=0?"+":""}${wk} hf</span>`:""}</td>${cells.map(c=>`<td class="num">${c}</td>`).join("")}
+      <td class="note">${esc(a.note||"")}</td><td><button class="rowbtn" data-act="editA" data-id="${p.id}" data-a="${a.id}" ${lock}>Düzenle</button></td></tr>`;
+  }).join("");
+  const head = p.group==="LOMBER"
+    ? ["NRS","ODI %","CSA L4–5 S/Sol","Asim. %","Kontr.","Goutallier"]
+    : ["NRS","NDI %","CSA C5–6 S/Sol","Kontr.","KSFT","Rot. S/Sol °"];
+  return `<div class="dhead"><div>
+      <div style="display:flex;gap:10px;align-items:center"><h2>${esc(p.code)}</h2><span class="gtag ${p.group}">${GROUP_NAME[p.group]}</span></div>
+      <div class="facts"><span><b>${ownerLabel(p)}</b></span><span>Tanı <b>${esc(p.dx||"—")}</b></span>${p.surgery||p.surgeryDate?`<span>Cerrahi <b>${esc(p.surgery||"—")}</b>${p.surgeryDate?` · ${fmtDate(p.surgeryDate)}`:""}</span>`:""}
+      <span>${esc(p.sex||"")}${p.age?` · ${esc(p.age)} yaş`:""}</span>${study?`<span>Çalışma <b>${esc(study.name)}</b> · ${esc(p.arm||"kol yok")}</span>`:""}</div></div>
+    <div class="actions"><button class="btn" data-act="editPatient" data-id="${p.id}" ${lock}>Hasta bilgisi</button><button class="btn primary" data-act="newA" data-id="${p.id}" ${lock}>+ Değerlendirme</button></div></div>
+    ${(p.type||"POSTOP")==="OZEL" ? sessPanel(p)+exPanel(p) : ""}
+    ${as.length ? `<div class="panel"><div class="panel-h"><h3>Sonuç ölçümleri</h3><span class="hint">Grafiği değiştirmek için bir ölçüme dokunun</span></div>
+      <div class="outcomes">${oc}</div>
+      <div class="chart-wrap" style="margin-top:14px">${chart(as, M[mk], p.group)}</div>${aisStrip}</div>
+    <div class="panel"><div class="panel-h"><h3>Değerlendirmeler</h3>${p.surgeryDate?`<span class="hint">hf = cerrahiden sonra geçen hafta</span>`:""}</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Ziyaret</th>${head.map(h=>`<th class="num">${h}</th>`).join("")}<th>Not</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`
+    : `<div class="panel"><div class="panel-h"><h3>Sonuç ölçümleri</h3></div><p class="hint">Henüz değerlendirme yok. ${p.group==="SERVIKAL"?"NDI, servikal multifidus, KSFT ve EHA":"ODI, lomber multifidus ve kontraksiyon oranı"} için <button class="rowbtn" data-act="newA" data-id="${p.id}">ilk değerlendirmeyi girin</button>.</p></div>`}
+    ${(p.type||"POSTOP")==="OZEL" ? "" : exPanel(p)}${icfPanel(p)}`;
+}
+
+function chart(as, m, g){
+  const pts = as.map(a=>({d:a.date, v:m.get(a)})).filter(x=>x.v!=null);
+  if(!pts.length) return `<div class="hint">${m.label} için veri girilmemiş.</div>`;
+  const W=640,H=230,L=44,R=20,T=22,B=34;
+  let lo = m.min ?? Math.min(...pts.map(x=>x.v)), hi = m.max ?? Math.max(...pts.map(x=>x.v));
+  if(m.min==null||m.max==null){ const pad=(hi-lo||Math.abs(hi)||1)*0.25; if(m.min==null) lo=Math.max(0,lo-pad); if(m.max==null) hi=hi+pad; }
+  if(hi===lo) hi=lo+1;
+  const x = i => pts.length===1 ? (L+W-R)/2 : L + i*(W-L-R)/(pts.length-1);
+  const y = v => T + (hi-v)*(H-T-B)/(hi-lo);
+  const ticks=[0,1,2,3,4].map(i=>lo+(hi-lo)*i/4);
+  const dg = (hi-lo)<5 ? 1 : 0;
+  const line = pts.map((p,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const area = pts.length>1 ? `${line} L${x(pts.length-1).toFixed(1)},${H-B} L${x(0).toFixed(1)},${H-B} Z` : "";
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(m.label)} zaman içinde">
+    ${ticks.map(t=>`<line class="grid-l" x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}"/><text class="ax" x="${L-8}" y="${y(t)+4}" text-anchor="end">${fmt(t,dg)}</text>`).join("")}
+    ${area?`<path class="ar ${g}" d="${area}" opacity=".55"/>`:""}<path class="ln ${g}" d="${line}"/>
+    ${pts.map((p,i)=>`<circle class="pt ${g} ${i===pts.length-1?"last":""}" cx="${x(i)}" cy="${y(p.v)}" r="4.5"/>
+      <text class="vl" x="${x(i)}" y="${y(p.v)-10}" text-anchor="middle">${fmt(p.v,m.dg||1)}</text>
+      <text class="ax" x="${x(i)}" y="${H-12}" text-anchor="middle">${esc(shortDate(p.d))}</text>`).join("")}
+  </svg>`;
+}
+
+// ---------- research
+function viewResearch(){
+  const studies=ST();
+  if(!S.studySel || !studies.some(s=>s.id===S.studySel)) S.studySel = studies[0]?.id || null;
+  const st = studies.find(s=>s.id===S.studySel);
+  const lock = demo()?"disabled":"";
+  const chips = studies.map(s=>`<button class="chip" data-act="study" data-v="${s.id}" aria-pressed="${s.id===S.studySel}">${esc(s.name)}</button>`).join("");
+  let body = `<div class="empty">Henüz çalışma yok. Bir çalışma oluşturup hastaları kollara atayın.<br><br><button class="btn primary" data-act="newStudy" ${lock}>Çalışma oluştur</button></div>`;
+  if(st){
+    const pats = P().filter(p=>p.study===st.id);
+    const groups = [...new Set(pats.map(p=>p.group))];
+    const avail = Object.keys(M).filter(k=>groups.some(g=>M[k].groups.includes(g)));
+    const mk = (S.resMetric && avail.includes(S.resMetric)) ? S.resMetric : (st.metric && avail.includes(st.metric) ? st.metric : avail[0]);
+    const m = M[mk];
+    const arms = [...st.arms, ...(pats.some(p=>!p.arm)?["(kol atanmamış)"]:[])];
+    const armRows = arms.map(arm => {
+      const ps = pats.filter(p=>(p.arm||"(kol atanmamış)")===arm);
+      const ch = ps.map(p=>{ const v=[...p.assessments].sort((a,b)=>a.date.localeCompare(b.date)).map(m?m.get:()=>null).filter(x=>x!=null); return v.length>1 ? {b:v[0],l:v[v.length-1]} : null; }).filter(Boolean);
+      const d = ch.map(c=>c.l-c.b);
+      const resp = m?.mcid ? ch.filter(c=>(c.l-c.b)*m.dir>=m.mcid).length : null;
+      return `<tr><td>${esc(arm)}</td><td class="num">${ps.length}</td><td class="num">${ch.length}</td>
+        <td class="num">${ch.length?fmt(mean(ch.map(c=>c.b)),m.dg||1):"—"}</td><td class="num">${ch.length?fmt(mean(ch.map(c=>c.l)),m.dg||1):"—"}</td>
+        <td class="num">${d.length?(mean(d)>0?"+":"")+fmt(mean(d),m.dg||1)+(sd(d)!=null?" ± "+fmt(sd(d),m.dg||1):""):"—"}</td>
+        <td class="num">${resp==null?"—":`${resp}/${ch.length}`}</td></tr>`;
+    }).join("");
+    const prow = pats.map(p=>`<tr><td class="mono">${esc(p.code)}</td><td><span class="gtag ${p.group}">${GROUP_TAG[p.group]||esc(p.group)}</span></td><td>${esc(p.arm||"—")}</td><td class="num">${p.assessments.length}</td><td>${esc(p.dx||"")}</td></tr>`).join("");
+    body = `<div class="panel"><div class="panel-h"><div><h3>${esc(st.name)}</h3><div class="hint">Kollar: ${st.arms.map(esc).join(", ")} · ${pats.length} hasta</div></div>
+        <div class="actions"><button class="btn" data-act="editStudy" data-v="${st.id}" ${lock}>Çalışmayı düzenle</button><button class="btn primary" data-act="csv" data-v="${st.id}">CSV indir</button></div></div>
+      ${pats.length ? `<div class="filters" style="margin-bottom:10px">${avail.map(k=>`<button class="chip" data-act="resMetric" data-v="${k}" aria-pressed="${k===mk}">${M[k].label}</button>`).join("")}</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Kol</th><th class="num">n</th><th class="num">≥2 ölçüm</th><th class="num">Başlangıç ort.</th><th class="num">Son ort.</th><th class="num">Değişim ort. ± SS</th><th class="num">MKÖF'ü aşan</th></tr></thead><tbody>${armRows}</tbody></table></div>
+      <p class="hint">${m.label} (${m.unit}). Değişim, her hastanın ilk ve son ölçümü arasındaki farktır. Bu tablo betimleyicidir; çıkarımsal analiz için CSV'yi SPSS veya R'a aktarın.</p>`
+      : `<div class="empty">Bu çalışmaya henüz hasta atanmadı. Hasta bilgisi ekranından çalışma ve kol seçebilirsiniz.</div>`}
+    </div>
+    ${pats.length?`<div class="panel"><div class="panel-h"><h3>Katılımcılar</h3></div><div class="tbl-wrap"><table><thead><tr><th>Kod</th><th>Grup</th><th>Kol</th><th class="num">Değ.</th><th>Tanı</th></tr></thead><tbody>${prow}</tbody></table></div></div>`:""}`;
+  }
+  const csvBox = S.csvText!=null ? `<div class="panel"><div class="panel-h"><h3>CSV metni</h3><div class="actions"><button class="btn" data-act="copyCsv">Kopyala</button><button class="btn ghost" data-act="closeCsv">Kapat</button></div></div><textarea class="csv" id="csvText" readonly>${esc(S.csvText)}</textarea><p class="hint">Bu görünümde dosya indirilemiyor; metni kopyalayıp .csv uzantılı bir dosyaya yapıştırın.</p></div>` : "";
+  return `<div class="detail">
+    <div class="dhead"><div><h2 style="font-family:var(--f-display);font-weight:400;font-size:30px">Araştırma</h2><div class="facts"><span>Hastalar kod ile; dışa aktarılan veri ad, iletişim veya kimlik bilgisi içermez.</span></div></div>
+      <div class="actions"><button class="btn" data-act="csv" data-v="ALL">Tüm verileri CSV indir</button><button class="btn" data-act="csvIcf" data-v="ALL">ICF verisi CSV</button><button class="btn primary" data-act="newStudy" ${lock}>+ Çalışma</button></div></div>
+    ${studies.length?`<div class="filters">${chips}</div>`:""}
+    ${body}${csvBox}</div>`;
+}
+
+const CSV_COLS = ["hasta_kodu","hasta_turu","bolge","tani","cerrahi","cerrahi_tarihi","cinsiyet","yas","calisma","kol","ziyaret","tarih","postop_hafta","nrs","odi_ham","odi_yuzde","ndi_ham","ndi_yuzde","csa_l4l5_sag","csa_l4l5_sol","csa_l5s1_sag","csa_l5s1_sol","asimetri_l4l5_yuzde","csa_c4c5_sag","csa_c4c5_sol","csa_c5c6_sag","csa_c5c6_sol","asimetri_c5c6_yuzde","kalinlik_dinlenme_mm","kalinlik_kontraksiyon_mm","kontraksiyon_orani","goutallier","ksft_aktivasyon_mmhg","ksft_performans_indeksi","rom_fleksiyon","rom_ekstansiyon","rom_rotasyon_sag","rom_rotasyon_sol","ortalama_egzersiz_uyumu_yuzde","not"];
+function adhAvg(p){ const ad=p.program?.adherence||[]; return ad.length?Math.round(mean(ad.map(a=>a.target?Math.min(100,a.done/a.target*100):0))):null; }
+function buildCsv(studyId){
+  const sts=ST(); const pats = P().filter(p=>studyId==="ALL"||p.study===studyId);
+  const q = v => { if(v==null||v==="") return ""; const s=String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
+  const r = (v,d) => v==null ? "" : (Math.round(v*10**d)/10**d);
+  const lines=[CSV_COLS.join(",")];
+  pats.forEach(p => [...p.assessments].sort((a,b)=>a.date.localeCompare(b.date)).forEach(a => {
+    const st=sts.find(s=>s.id===p.study);
+    lines.push([p.code,(p.type||"POSTOP")==="OZEL"?"ozel":"cerrahi_sonrasi",p.group,p.dx,p.surgery,p.surgeryDate,p.sex,p.age,st?.name,p.arm,a.visit,a.date,weeksPost(p.surgeryDate,a.date),
+      num(a.nrs),num(a.odi_raw),r(M.odi.get(a),1),num(a.ndi_raw),r(M.ndi.get(a),1),num(a.l4r),num(a.l4l),num(a.l5r),num(a.l5l),r(M.asym.get(a),1),
+      num(a.c4r),num(a.c4l),num(a.c5r),num(a.c5l),r(M.casym.get(a),1),num(a.rest_mm),num(a.contr_mm),r(M.ratio.get(a),3),
+      a.goutallier,num(a.ccft),num(a.ccft_pi),num(a.flex),num(a.ext),num(a.rotR),num(a.rotL),adhAvg(p),a.note].map(q).join(","));
+  }));
+  return "﻿"+lines.join("\n");
+}
+async function exportIcf(studyId){
+  const pats=P().filter(p=>studyId==="ALL"||p.study===studyId);
+  const q=v=>{ const x=String(v??""); return /[",\n]/.test(x)?`"${x.replace(/"/g,'""')}"`:x; };
+  const lines=["hasta_kodu,hasta_turu,bolge,tarih,bilesen,kod,kategori,niteleyici"];
+  pats.forEach(p=>(p.icf||[]).forEach(pr=>{ Object.entries(pr.r||{}).forEach(([c,v])=>lines.push([p.code,p.type||"POSTOP",p.group,pr.date,c[0],c,icfName(c),v].map(q).join(",")));
+    (pr.extra||[]).forEach(x=>lines.push([p.code,p.type||"POSTOP",p.group,pr.date,x.c[0],x.c,x.t,x.q].map(q).join(","))); }));
+  if(lines.length===1){ toast("Henüz ICF verisi yok."); return; }
+  let dl=null; try{ dl=await __LOCAL.use("downloads"); }catch(e){}
+  const csv="\uFEFF"+lines.join("\n");
+  if(dl){ try{ await dl.save({filename:`icf-${today()}.csv`, data:csv}); toast("ICF CSV indirildi."); return; }catch(e){ if(e?.code==="declined") return; } }
+  S.csvText=csv.replace(/^\uFEFF/,""); S.view="arastirma"; render();
+}
+async function exportCsv(studyId){
+  const csv=buildCsv(studyId);
+  const st=ST().find(s=>s.id===studyId);
+  const name=(st?st.name:"tum-veriler").toLowerCase().replace(/[^a-z0-9ğüşıöç]+/gi,"-")+"-"+today()+".csv";
+  let dl=null; try{ dl = await __LOCAL.use("downloads"); }catch(e){}
+  if(dl){ try{ await dl.save({filename:name, data:csv}); toast("CSV indirildi."); return; } catch(e){ if(e&&e.code==="declined") return; } }
+  S.csvText=csv.replace(/^﻿/,""); render();
+}
+
+// ---------- students
+const daysTo = d => { if(!d) return null; return Math.round((new Date(d+"T12:00:00") - new Date(today()+"T12:00:00"))/864e5); };
+const dueTxt = n => n==null ? "" : n===0 ? "bugün" : n>0 ? `${n} gün kaldı` : `${-n} gün geçti`;
+function viewStudents(){
+  const list=[...STU()].sort((a,b)=>(a.level==="Stajyer")-(b.level==="Stajyer")||a.name.localeCompare(b.name,"tr")); const lock="";
+  if(!S.stuSel || !list.some(s=>s.id===S.stuSel)) S.stuSel=list[0]?.id||null;
+  const s=list.find(x=>x.id===S.stuSel);
+  const upcoming = list.flatMap(x=>[
+      x.nextMeet?{d:x.nextMeet,t:"Görüşme",who:x.name,id:x.id}:null,
+      x.deadline?{d:x.deadline,t:x.deadlineNote||"Son tarih",who:x.name,id:x.id}:null]).filter(Boolean)
+    .filter(e=>{const n=daysTo(e.d); return n!=null && n>=-7 && n<=30;}).sort((a,b)=>a.d.localeCompare(b.d));
+  const items=list.map(x=>{ const n=daysTo(x.deadline); return `<button class="pitem" data-act="stuSel" data-id="${x.id}" aria-current="${x.id===S.stuSel}">
+      <span class="gtag STU">${esc(x.level)}</span><span style="font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</span>
+      <span class="n">${x.level==="Stajyer"?`${S.patients.filter(p=>p.owner===x.id).length} hasta`:esc(x.stage)}</span><span class="dx">${esc(x.topic||"")}</span></button>`;}).join("");
+  let detail=`<div class="empty">Henüz öğrenci yok.<br><span class="hint">Stajyerleri ekleyince cerrahi sonrası hastaları onlara atayabilirsiniz.</span><br><br><button class="btn primary" data-act="newStu" ${lock}>İlk öğrenciyi ekle</button></div>`;
+  if(s){
+    const si=STAGES.indexOf(s.stage);
+    const st=ST().find(x=>x.id===s.study); const sp=st?P().filter(p=>p.study===st.id).length:0;
+    const nm=daysTo(s.nextMeet), dl=daysTo(s.deadline);
+    const log=[...(s.log||[])].sort((a,b)=>b.date.localeCompare(a.date));
+    detail=`<div class="dhead"><div><h2 style="font-family:var(--f-display);font-weight:400;font-size:30px">${esc(s.name)}</h2>
+        <div class="facts"><span><b>${esc(s.level)}</b> · ${s.start?fmtDate(s.start)+" başlangıç":""}</span>${st?`<span>Çalışma <b>${esc(st.name)}</b> · ${sp} hasta</span>`:""}</div></div>
+      <div class="actions"><button class="btn" data-act="editStu" data-id="${s.id}" ${lock}>Düzenle</button></div></div>
+      ${s.level==="Stajyer" ? stajPanel(s) : `<div class="panel"><div class="label" style="margin-bottom:6px">Tez konusu</div><div style="font-size:16px;max-width:65ch">${esc(s.topic||"—")}</div>
+        <div class="stages" style="margin-top:14px">${STAGES.map((g,i)=>`<span class="stg ${i<si?"done":i===si?"now":""}">${g}</span>`).join("")}</div></div>`}
+      <div class="outcomes">
+        <div class="oc" style="cursor:default"><span class="k">Sonraki görüşme</span><span class="v" style="font-size:16px">${fmtDate(s.nextMeet)}</span><span class="delta ${nm!=null&&nm<0?"bad":"flat"}">${dueTxt(nm)}</span></div>
+        <div class="oc" style="cursor:default"><span class="k">${esc(s.deadlineNote||"Son tarih")}</span><span class="v" style="font-size:16px">${fmtDate(s.deadline)}</span><span class="delta ${dl!=null&&dl<0?"bad":dl!=null&&dl<=14?"warnc":"flat"}">${dueTxt(dl)}</span></div>
+      </div>
+      <div class="panel"><div class="panel-h"><h3>Görüşme notları</h3></div>
+        <form id="logForm" class="logform"><input id="f-logdate" name="date" type="date" value="${today()}" ${lock}><input id="f-logtext" name="text" placeholder="Bugün ne konuşuldu, sıradaki adım ne?" ${lock}><button class="btn primary" type="submit" ${lock}>Ekle</button></form>
+        ${log.length?`<ul class="log">${log.map(l=>`<li><span class="mono hint">${fmtDate(l.date)}</span><span>${esc(l.text)}</span></li>`).join("")}</ul>`:`<p class="hint">Henüz not yok.</p>`}</div>`;
+  }
+  return `  <div class="grid"><aside class="rail"><div class="rail-h"><span class="label">Stajyer ve tez öğrencileri · ${list.length}</span><button class="btn primary" data-act="newStu" ${lock}>+ Öğrenci</button></div>
+    ${list.length?`<div class="plist">${items}</div>`:""}</aside><section class="detail">${detail}</section></div>`;
+}
+function stajPanel(s){
+  const ps=S.patients.filter(p=>p.owner===s.id);
+  const last=p=>[...p.assessments].sort((a,b)=>b.date.localeCompare(a.date))[0];
+  return `<div class="panel"><div class="panel-h"><h3>Sorumlu olduğu hastalar · ${ps.length}</h3></div>
+    ${s.topic?`<p class="hint" style="margin-top:0">${esc(s.topic)}</p>`:""}
+    ${ps.length?`<div class="tbl-wrap"><table><thead><tr><th>Kod</th><th>Bölge</th><th>Tanı</th><th>Son değerlendirme</th><th class="num">Uyum</th></tr></thead><tbody>
+      ${ps.map(p=>{const l=last(p); const ad=p.program?.adherence||[]; const u=ad.length?Math.round(mean(ad.map(a=>a.target?Math.min(100,a.done/a.target*100):0))):null;
+        const old=l&&daysTo(l.date)<-21; return `<tr><td><button class="rowbtn mono" data-act="pSel" data-id="${p.id}">${esc(p.code)}</button></td><td><span class="gtag ${p.group}">${GROUP_TAG[p.group]}</span></td><td>${esc(p.dx||"")}</td>
+        <td class="${old?"delta warnc":""}">${l?fmtDate(l.date)+(old?" · 3 haftadan eski":""):"yok"}</td><td class="num">${u==null?"—":"%"+u}</td></tr>`;}).join("")}</tbody></table></div>`
+    :`<p class="hint">Henüz atanmış hasta yok. Hasta bilgisi ekranından “Sorumlu stajyer” seçin.</p>`}</div>`;
+}
+function addLog(f){
+  const text=f.elements.text.value.trim(); if(!text) return;
+  const s=JSON.parse(JSON.stringify(S.students.find(x=>x.id===S.stuSel)));
+  s.log=[...(s.log||[]), {date:f.elements.date.value||today(), text}];
+  upsertStudent(s); render(); toast("Not eklendi.");
+}
+
+function addSess(f){
+  const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===f.dataset.id)));
+  p.sessions=[...(p.sessions||[]), {id:rid("ss-"), date:f.elements.date.value||today(), text:f.elements.text.value.trim()}];
+  if(p.nextAppt?.date && p.nextAppt.date<=(f.elements.date.value||today())) p.nextAppt={};
+  upsertPatient(p); render(); toast(`${p.sessions.length}. seans kaydedildi.`);
+}
+function setAppt(f){
+  const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===f.dataset.id)));
+  p.nextAppt={date:f.elements.date.value, time:f.elements.time.value};
+  upsertPatient(p); render(); toast(p.nextAppt.date?"Randevu kaydedildi.":"Randevu silindi.");
+}
+function addAdh(f){
+  const done=num(f.elements.done.value), target=num(f.elements.target.value);
+  if(done==null||!target){ toast("Yapılan ve hedef seans sayısını girin."); return; }
+  const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===f.dataset.id)));
+  p.program=p.program||{items:[],adherence:[]}; p.program.adherence=p.program.adherence||[];
+  const week=weekStart(f.elements.week.value);
+  const i=p.program.adherence.findIndex(a=>a.week===week); const row={week,done,target};
+  if(i<0) p.program.adherence.push(row); else p.program.adherence[i]=row;
+  upsertPatient(p); render(); toast(i<0?"Hafta kaydedildi.":"Haftanın kaydı güncellendi.");
+}
+function viewLibrary(){
+  const f=[["ALL","Tümü"],["LOMBER","Bel"],["SERVIKAL","Boyun"],["ORTAK","Ortak"]];
+  const q=(S.exQ||"").toLocaleLowerCase("tr");
+  const hid=S.hiddenEx||[];
+  const list=allEx().filter(x=>(S.exFilter==="ALL"||x.g===S.exFilter) && (S.exCat==="ALL"||!S.exCat||x.k===S.exCat) && (S.showHidden || !hid.includes(x.id))
+      && (!q || (x.name+" "+(x.cue||"")).toLocaleLowerCase("tr").includes(q)))
+    .sort((a,b)=>(b.custom?1:0)-(a.custom?1:0) || EX_CATS.indexOf(a.k)-EX_CATS.indexOf(b.k));
+  const used = id => S.patients.filter(p=>(p.program?.items||[]).some(it=>it.exId===id && !(it.end&&it.end<today()))).length;
+  const cats=[["ALL","Tüm kategoriler"],...EX_CATS.map(c=>[c,c])];
+  return `<div class="detail"><div class="dhead"><div><h2 style="font-family:var(--f-display);font-weight:400;font-size:30px">Egzersiz kütüphanesi</h2>
+      <div class="facts"><span>${allEx().length} egzersiz · ${(S.customEx||[]).length} tanesi sizin. Hazır olanı “Kopyala ve düzenle” ile kendi versiyonunuza çevirebilir, kullanmadıklarınızı gizleyebilirsiniz.</span></div></div>
+      <div class="actions"><button class="btn primary" data-act="newCustomEx">+ Yeni egzersiz</button></div></div>
+    <div class="libbar"><input id="f-exq" type="search" placeholder="Egzersiz ara…" value="${esc(S.exQ||"")}" aria-label="Egzersiz ara">
+      <select id="f-excat" aria-label="Kategori">${cats.map(([k,l])=>`<option value="${esc(k)}" ${(S.exCat||"ALL")===k?"selected":""}>${esc(l)}</option>`).join("")}</select></div>
+    <div class="filters">${f.map(([k,l])=>`<button class="chip" data-act="exFilter" data-v="${k}" aria-pressed="${S.exFilter===k}">${l}</button>`).join("")}
+      ${hid.length?`<button class="chip" data-act="toggleHidden" aria-pressed="${!!S.showHidden}">Gizlenenler (${hid.length})</button>`:""}</div>
+    ${list.length?`<div class="cards">${list.map(x=>{const u=used(x.id); const h=hid.includes(x.id); return `<div class="panel excard ${h?"hiddenex":""}"><div class="exhead"><span class="gtag ${x.g}">${x.g==="ORTAK"?"ORTAK":GROUP_TAG[x.g]}</span><span class="hint">${esc(x.k||"")}${x.custom?" · <b class='mine'>sizin</b>":""}</span></div>
+      ${mediaHtml(x.id,false)}<h3>${esc(x.name)}</h3><div class="mono hint">${esc(x.dose||"")}</div><p>${esc(x.cue||"")}</p>
+      <div class="exfoot"><span class="hint">${u?`${u} hastada`:""}</span><span class="exbtns">
+        <button class="rowbtn" data-act="exVideo" data-x="${x.id}">${S.exMedia[x.id]?"Video":"+ Video"}</button>
+        ${x.custom?`<button class="rowbtn" data-act="editCustomEx" data-x="${x.id}">Düzenle</button>`:`<button class="rowbtn" data-act="copyEx" data-x="${x.id}">Kopyala ve düzenle</button>
+        <button class="rowbtn" data-act="hideEx" data-x="${x.id}">${h?"Göster":"Gizle"}</button>`}</span></div></div>`;}).join("")}</div>`
+      :`<div class="empty">Bu aramada egzersiz yok.<br><br><button class="btn primary" data-act="newCustomEx">+ Yeni egzersiz</button></div>`}</div>`;
+}
+
+// ---------- agenda
+function nextTuesday(){ const x=new Date(today()+"T12:00:00"); const k=(2-x.getDay()+7)%7; x.setDate(x.getDate()+k); return x.toISOString().slice(0,10); }
+function academicDue(){
+  return [
+    ...S.students.filter(x=>x.level!=="Stajyer").flatMap(x=>[x.nextMeet?{d:x.nextMeet,t:"Görüşme",who:x.name,act:"stuSel",id:x.id}:null, x.deadline?{d:x.deadline,t:x.deadlineNote||"Son tarih",who:x.name,act:"stuSel",id:x.id}:null]),
+  ].filter(Boolean).filter(e=>{const n=daysTo(e.d); return n>=-7 && n<=30;}).sort((a,b)=>a.d.localeCompare(b.d));
+}
+function viewAgenda(){
+  const t=today();
+  const appts=S.patients.filter(p=>p.type==="OZEL" && p.nextAppt?.date).map(p=>({p,d:p.nextAppt.date,tm:p.nextAppt.time||""}))
+    .filter(x=>{const n=daysTo(x.d); return n>=-1 && n<=7;}).sort((a,b)=>(a.d+a.tm).localeCompare(b.d+b.tm));
+  const due=academicDue();
+  const post=S.patients.filter(p=>(p.type||"POSTOP")==="POSTOP");
+  const lastA=p=>[...p.assessments].sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const flags=post.map(p=>{ const l=lastA(p); const ad=(p.program?.adherence||[]).slice().sort((a,b)=>a.week.localeCompare(b.week)).pop();
+      const why=[]; if(!l) why.push("değerlendirme yok"); else if(daysTo(l.date)<-21) why.push(`son değerlendirme ${-daysTo(l.date)} gün önce`);
+      if(ad && ad.target && ad.done/ad.target<0.5) why.push(`uyum %${Math.round(ad.done/ad.target*100)}`);
+      return why.length?{p,why}:null; }).filter(Boolean);
+  const pubsActive=S.pubs.filter(x=>!["Yayında","Ret"].includes(x.status));
+  const nt=nextTuesday();
+  const apptList = appts.length ? `<ul class="agenda">${appts.map(x=>`<li><span class="ad"><b>${esc(dayName(x.d))}</b><span class="mono hint">${shortDate(x.d)}${x.tm?" · "+esc(x.tm):""}</span></span>
+      <button class="rowbtn mono" data-act="pSel" data-id="${x.p.id}">${esc(x.p.code)}</button><span class="hint ell">${esc(x.p.dx||"")} · ${(x.p.sessions||[]).length}${x.p.pkg?"/"+x.p.pkg:""} seans</span></li>`).join("")}</ul>`
+    : `<p class="hint">Önümüzdeki 7 günde randevu yok. Özel hastanın sayfasında “Sonraki randevu”yu girince burada görünür.</p>`;
+  const dueList = due.length ? `<ul class="agenda">${due.map(e=>{const n=daysTo(e.d); return `<li><span class="ad"><b>${esc(e.t)}</b><span class="mono hint">${shortDate(e.d)}</span></span>
+      <button class="rowbtn ell" data-act="${e.act}" data-id="${e.id}">${esc(e.who)}</button><span class="delta ${n<0?"bad":n<=7?"warnc":"flat"}">${dueTxt(n)}</span></li>`;}).join("")}</ul>`
+    : `<p class="hint">Önümüzdeki 30 günde öğrenci görüşmesi veya son tarih yok.</p>`;
+  return `<div class="agenda-head"><h2>${new Date(t+"T12:00:00").toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long"})}</h2>
+      <div class="kpis"><span><b class="mono">${S.patients.filter(p=>p.type==="OZEL").length}</b> özel hasta</span><span><b class="mono">${S.patients.filter(p=>(p.program?.items||[]).some(it=>!(it.end&&it.end<today()))).length}</b> aktif egzersiz programı</span><span><b class="mono">${S.students.length}</b> öğrenci</span></div></div>
+    ${S.patients.length||S.students.length ? "" : welcome()}
+    <div class="agrid">
+      <div class="panel"><div class="panel-h"><h3>Bu hafta · özel hastalar</h3><button class="btn" data-act="newPatient">+ Hasta</button></div>${apptList}</div>
+      <div class="panel"><div class="panel-h"><h3>Öğrenciler · 30 gün</h3><button class="btn" data-act="newStu">+ Öğrenci</button></div>${dueList}</div>
+      <div class="panel quiet"><div class="panel-h"><h3>Salı kliniği · ${shortDate(nt)}</h3><span class="hint">${post.length} cerrahi sonrası hasta</span></div>
+        ${flags.length?`<ul class="agenda">${flags.slice(0,6).map(f=>`<li><button class="rowbtn mono" data-act="pSel" data-id="${f.p.id}">${esc(f.p.code)}</button><span class="hint ell">${ownerLabel(f.p)}</span><span class="delta warnc">${esc(f.why.join(", "))}</span></li>`).join("")}</ul>${flags.length>6?`<p class="hint">+${flags.length-6} hasta daha</p>`:""}`
+          :`<p class="hint">${post.length?"Dikkat isteyen hasta yok: hepsi son 3 haftada değerlendirilmiş, uyum %50'nin üzerinde.":"Klinik hastası eklenmedi. Stajyerlerin hastaları buraya yalnızca dikkat gerektirdiğinde düşer."}</p>`}</div>
+    </div>`;
+}
+
+// ---------- publications
+const PUB_TYPES=["Makale","Kongre bildirisi","Kitap bölümü","Proje başvurusu"];
+const PUB_STATUS=["Fikir","Veri toplama","Yazım","Gönderildi","Hakem sürecinde","Revizyon","Kabul","Yayında","Ret"];
+const pubCls = st => ["Kabul","Yayında"].includes(st)?"ok":st==="Revizyon"?"warn":st==="Ret"?"no":["Gönderildi","Hakem sürecinde"].includes(st)?"wait":"draft";
+function viewPubs(){
+  const f=[["AKTIF","Sürenler"],["ALL","Tümü"]];
+  const list=S.pubs.filter(x=>S.pubFilter==="ALL"||!["Yayında","Ret"].includes(x.status))
+    .sort((a,b)=>PUB_STATUS.indexOf(b.status)-PUB_STATUS.indexOf(a.status)||(a.deadline||"9").localeCompare(b.deadline||"9"));
+  const rows=list.map(x=>{const st=S.students.find(y=>y.id===x.student); const n=daysTo(x.deadline);
+    return `<tr><td class="ttl"><button class="rowbtn" data-act="editPub" data-id="${x.id}">${esc(x.title)}</button><div class="hint">${esc(x.type)}${x.venue?" · "+esc(x.venue):""}${st?" · "+esc(st.name):""}</div></td>
+      <td><span class="pill ${pubCls(x.status)}">${esc(x.status)}</span></td>
+      <td>${x.deadline?`${fmtDate(x.deadline)}<div class="hint">${esc(x.deadlineNote||"")} <span class="delta ${n<0?"bad":n<=14?"warnc":"flat"}">${dueTxt(n)}</span></div>`:"—"}</td></tr>`;}).join("");
+  return `<div class="detail"><div class="dhead"><div><h2 style="font-family:var(--f-display);font-weight:400;font-size:30px">Yayınlar ve bildiriler</h2>
+      <div class="facts"><span>Makale, kongre bildirisi ve proje başvurularının aşaması ve son tarihleri.</span></div></div>
+      <div class="actions"><button class="btn primary" data-act="newPub">+ Yayın</button></div></div>
+    <div class="filters">${f.map(([k,l])=>`<button class="chip" data-act="pubFilter" data-v="${k}" aria-pressed="${S.pubFilter===k}">${l}</button>`).join("")}</div>
+    ${list.length?`<div class="panel"><div class="tbl-wrap"><table class="pubs"><thead><tr><th>Başlık</th><th>Durum</th><th>Son tarih</th></tr></thead><tbody>${rows}</tbody></table></div></div>`
+      :`<div class="empty">${S.pubs.length?"Süren yayın yok; tümünü görmek için “Tümü”ne basın.":"Henüz yayın eklenmedi. Yazımdaki bir makaleyi ya da kongre özetini ekleyerek başlayın."}<br><br><button class="btn primary" data-act="newPub">+ Yayın</button></div>`}</div>`;
+}
+function viewKutuphane(){
+  const tabs=`<div class="filters" style="margin-bottom:16px"><button class="chip" data-act="libTab" data-v="egzersiz" aria-pressed="${S.libTab==="egzersiz"}">Egzersizler</button><button class="chip" data-act="libTab" data-v="olcek" aria-pressed="${S.libTab==="olcek"}">Ölçek rehberi</button></div>`;
+  return tabs + (S.libTab==="olcek" ? viewGuide() : viewLibrary());
+}
+
+// ---------- guide
+function viewGuide(){
+  return `<div class="dhead" style="margin-bottom:16px"><h2 style="font-family:var(--f-display);font-weight:400;font-size:30px;margin:0">Ölçek rehberi</h2><button class="btn" data-act="view" data-v="ajanda">← Ajanda</button></div><div class="cards">
+  <div class="panel ref"><h3>Boyun Özürlülük İndeksi (NDI)</h3><p>10 madde × 0–5 puan; ham puan ÷ 50 × 100 = %.</p><dl>
+    <dt>0–8 %</dt><dd>Özürlülük yok</dd><dt>10–28 %</dt><dd>Hafif</dd><dt>30–48 %</dt><dd>Orta</dd><dt>50–68 %</dt><dd>Şiddetli</dd><dt>70+ %</dt><dd>Tam</dd>
+    <dt>MKÖF</dt><dd>Servikal radikülopatide yaklaşık 7,5 ham puan (%15) önerilmiştir.</dd></dl></div>
+  <div class="panel ref"><h3>Kraniyoservikal fleksiyon testi (KSFT)</h3><p>Basınç biyofeedback ünitesi 20 mmHg'de, 2 mmHg'lik 5 basamak.</p><dl>
+    <dt>Aktivasyon</dt><dd>Yüzeyel fleksörler devreye girmeden 10 sn tutulabilen en yüksek basamak: 22–30 mmHg (20 = başarısız)</dd>
+    <dt>Performans indeksi</dt><dd>Aktivasyon artışı × 10 sn tekrar sayısı (en fazla 10); 0–100</dd></dl></div>
+  <div class="panel ref"><h3>Servikal eklem hareket açıklığı</h3><p>CROM veya inklinometre ile, derece.</p><dl>
+    <dt>Fleksiyon</dt><dd>Normalde yaklaşık 50–60°</dd><dt>Ekstansiyon</dt><dd>Yaklaşık 60–75°</dd><dt>Rotasyon</dt><dd>Her yöne yaklaşık 70–80°; defter sağ + sol toplamını izler</dd></dl></div>
+  <div class="panel ref"><h3>ICF niteleyicileri</h3><p>Defterdeki kategoriler bel ve boyun ağrısı çekirdek setlerinden seçilmiştir; listede olmayan kodu değerlendirmede elle ekleyebilirsiniz.</p><dl>
+    <dt>0</dt><dd>Sorun yok (%0–4)</dd><dt>1</dt><dd>Hafif (%5–24)</dd><dt>2</dt><dd>Orta (%25–49)</dd><dt>3</dt><dd>Ağır (%50–95)</dd><dt>4</dt><dd>Tam (%96–100)</dd>
+    <dt>e: +1…+4</dt><dd>Kolaylaştırıcı; düz 1…4 engel</dd><dt>8 / 9</dt><dd>Belirtilmemiş / uygulanamaz</dd></dl></div>
+  <div class="panel ref"><h3>Multifidus ultrason</h3><p>Defter asimetriyi ve kontraksiyon oranını kendisi hesaplar.</p><dl>
+    <dt>Bel</dt><dd>CSA (cm²), L4–L5 ve L5–S1, sağ ve sol</dd><dt>Boyun</dt><dd>CSA (cm²), C4–C5 ve C5–C6, sağ ve sol</dd><dt>Asimetri</dt><dd>|sağ − sol| ÷ büyük taraf × 100</dd>
+    <dt>Kontr. oranı</dt><dd>Kontraksiyondaki kalınlık ÷ dinlenmedeki kalınlık. 1'in üzeri aktivasyon gösterir.</dd></dl></div>
+  <div class="panel ref"><h3>Yağlı dejenerasyon ve ODI</h3><dl>
+    <dt>Goutallier</dt><dd>0 yağ yok · 1 birkaç yağ çizgisi · 2 yağ &lt; kas · 3 yağ = kas · 4 yağ &gt; kas</dd>
+    <dt>ODI</dt><dd>10 madde × 0–5 puan. Ham puan ÷ 50 × 100 = %. Önerilen MKÖF yaklaşık 10 puan.</dd>
+    <dt>NRS</dt><dd>0–10 ağrı; önerilen MKÖF yaklaşık 2 puan.</dd></dl></div>
+  </div><p class="hint" style="margin-top:14px">MKÖF eşikleri literatürdeki yaygın önerilerdir; çalışmanızın popülasyonuna uygun değeri kendiniz doğrulayın.</p>`;
+}
+
+// ---------- sheet (forms)
+function fld(name,label,val,type="number",extra=""){ return `<div class="f"><label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" type="${type}" value="${esc(val??"")}" ${type==="number"?'step="any" inputmode="decimal"':""} ${extra}></div>`; }
+function sel(name,label,opts,val){ return `<div class="f"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}">${opts.map(o=>{const [v,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${String(val??"")===String(v)?"selected":""}>${esc(l)}</option>`;}).join("")}</select></div>`; }
+
+function renderSheet(){
+  const root=$("#sheet-root"); const sh=S.sheet;
+  if(!sh){ root.innerHTML=""; return; }
+  let html="";
+  if(sh.type==="patient"){
+    const p = sh.pid ? S.patients.find(x=>x.id===sh.pid) : {group:"LOMBER"};
+    const st=S.studies;
+    html = `<h3>${sh.pid?"Hasta bilgisi":"Yeni hasta"}</h3>
+      <p class="hint">Ad, TC kimlik no veya iletişim bilgisi girmeyin. Kodu kendi tuttuğunuz eşleştirme listesinde saklayın.</p>
+      <fieldset><legend>Kimlik</legend>${fld("code","Hasta kodu",p.code,"text",'required placeholder="L-001"')}
+        ${sel("group","Bölge",[["LOMBER","Bel (lomber)"],["SERVIKAL","Boyun (servikal)"]],p.group)}
+        ${sel("sex","Cinsiyet",[["",""],["K","Kadın"],["E","Erkek"]],p.sex)}${fld("age","Yaş",p.age)}</fieldset>
+      <fieldset><legend>Takip</legend>${sel("type","Hasta türü",[["OZEL","Özel hasta"],["POSTOP","Klinik · cerrahi sonrası"]],p.type||(S.tfilter==="POSTOP"?"POSTOP":"OZEL"))}
+        ${fld("pkg","Paket (seans sayısı, özel)",p.pkg,"number",'min="1"')}
+        ${sel("owner","Sorumlu stajyer",[["","—"],...S.students.filter(x=>x.level==="Stajyer").map(x=>[x.id,x.name])],p.owner)}
+        <p class="hint f wide" style="margin:0">${S.students.some(x=>x.level==="Stajyer")?"Özel hastalarda sorumlu boş kalabilir.":"Stajyer seçebilmek için önce Öğrenciler sekmesinde düzeyi “Stajyer” olan öğrenci ekleyin."}</p></fieldset>
+      <fieldset><legend>Klinik</legend><div class="f wide"><label for="f-dx">Tanı</label><input id="f-dx" name="dx" value="${esc(p.dx||"")}" placeholder="L4–L5 disk hernisi"></div>
+        <div class="f wide"><label for="f-surgery">Cerrahi</label><input id="f-surgery" name="surgery" value="${esc(p.surgery||"")}" placeholder="Mikrodiskektomi"></div>
+        ${fld("surgeryDate","Cerrahi tarihi",p.surgeryDate,"date")}</fieldset>
+`;
+  } else if(sh.type==="assess"){
+    const p=S.patients.find(x=>x.id===sh.pid);
+    const prev=[...p.assessments].sort((a,b)=>a.date.localeCompare(b.date)).pop();
+    const a = sh.aid ? p.assessments.find(x=>x.id===sh.aid) : {date:today()};
+    const visits = (p.type==="OZEL") ? ["İlk değerlendirme","4. seans","8. seans","Taburculuk","Kontrol (1. ay)","Kontrol (3. ay)"] : ["Pre-op","Post-op 2. hafta","Post-op 6. hafta","Post-op 12. hafta","Post-op 6. ay","Post-op 1. yıl"];
+    html = `<h3>${sh.aid?"Değerlendirmeyi düzenle":"Yeni değerlendirme"} · <span class="mono" style="font-size:20px">${esc(p.code)}</span></h3>
+      <fieldset><legend>Ziyaret</legend>${fld("date","Tarih",a.date,"date","required")}
+        <div class="f"><label for="f-visit">Ziyaret</label><input id="f-visit" name="visit" list="visits" value="${esc(a.visit||"")}"><datalist id="visits">${visits.map(v=>`<option value="${v}">`).join("")}</datalist></div>
+        ${fld("nrs","Ağrı NRS (0–10)",a.nrs,"number",'min="0" max="10"')}</fieldset>` +
+      (p.group==="LOMBER" ? `
+      <fieldset><legend>Oswestry</legend>${fld("odi_raw","ODI ham puan (0–50)",a.odi_raw,"number",'min="0" max="50"')}<div class="f"><label>ODI yüzdesi</label><div class="calc" data-calc="odi"></div></div></fieldset>
+      <fieldset><legend>Multifidus ultrason · CSA (cm²)</legend>${fld("l4r","L4–L5 sağ",a.l4r)}${fld("l4l","L4–L5 sol",a.l4l)}${fld("l5r","L5–S1 sağ",a.l5r)}${fld("l5l","L5–S1 sol",a.l5l)}
+        <div class="f wide"><label>L4–L5 asimetri</label><div class="calc" data-calc="asym"></div></div></fieldset>
+      <fieldset><legend>Kalınlık (mm) ve yağlanma</legend>${fld("rest_mm","Dinlenme",a.rest_mm)}${fld("contr_mm","Kontraksiyon",a.contr_mm)}
+        ${sel("goutallier","Goutallier",["","0","1","2","3","4"],a.goutallier)}<div class="f"><label>Kontraksiyon oranı</label><div class="calc" data-calc="ratio"></div></div></fieldset>`
+      : `
+      <fieldset><legend>Boyun Özürlülük İndeksi</legend>${fld("ndi_raw","NDI ham puan (0–50)",a.ndi_raw,"number",'min="0" max="50"')}<div class="f"><label>NDI yüzdesi</label><div class="calc" data-calc="ndi"></div></div></fieldset>
+      <fieldset><legend>Servikal multifidus ultrason · CSA (cm²)</legend>${fld("c4r","C4–C5 sağ",a.c4r)}${fld("c4l","C4–C5 sol",a.c4l)}${fld("c5r","C5–C6 sağ",a.c5r)}${fld("c5l","C5–C6 sol",a.c5l)}
+        <div class="f wide"><label>C5–C6 asimetri</label><div class="calc" data-calc="casym"></div></div></fieldset>
+      <fieldset><legend>Kalınlık (mm) ve yağlanma</legend>${fld("rest_mm","Dinlenme",a.rest_mm)}${fld("contr_mm","Kontraksiyon",a.contr_mm)}
+        ${sel("goutallier","Goutallier",["","0","1","2","3","4"],a.goutallier)}<div class="f"><label>Kontraksiyon oranı</label><div class="calc" data-calc="ratio"></div></div></fieldset>
+      <fieldset><legend>Derin servikal fleksörler (KSFT)</legend>${sel("ccft","Aktivasyon (mmHg)",["","20","22","24","26","28","30"],a.ccft)}${fld("ccft_pi","Performans indeksi (0–100)",a.ccft_pi,"number",'min="0" max="100"')}</fieldset>
+      <fieldset><legend>Eklem hareket açıklığı (°)</legend>${fld("flex","Fleksiyon",a.flex)}${fld("ext","Ekstansiyon",a.ext)}${fld("rotR","Rotasyon sağ",a.rotR)}${fld("rotL","Rotasyon sol",a.rotL)}</fieldset>`) +
+      `<div class="f"><label for="f-note">Not</label><textarea id="f-note" name="note" rows="3">${esc(a.note||"")}</textarea></div>`;
+  } else if(sh.type==="study"){
+    const s = sh.sid ? S.studies.find(x=>x.id===sh.sid) : {arms:["Kontrol","Müdahale"], metric:"odi"};
+    html = `<h3>${sh.sid?"Çalışmayı düzenle":"Yeni çalışma"}</h3>
+      <fieldset><legend>Çalışma</legend><div class="f wide"><label for="f-name">Ad</label><input id="f-name" name="name" required value="${esc(s.name||"")}" placeholder="Post-op multifidus aktivasyonu"></div>
+        <div class="f wide"><label for="f-arms">Kollar (virgülle ayırın)</label><input id="f-arms" name="arms" value="${esc(s.arms.join(", "))}"></div>
+        ${sel("metric","Birincil sonuç",Object.keys(M).map(k=>[k,M[k].label]),s.metric)}</fieldset>`;
+  } else if(sh.type==="exercise"){
+    const p=S.patients.find(x=>x.id===sh.pid);
+    const it = sh.xid ? (p.program?.items||[]).find(x=>x.id===sh.xid) : {start:today(), freq:"Günde 1"};
+    const opts = visEx().filter(x=>x.g===p.group||x.g==="ORTAK").sort((a,b)=>EX_CATS.indexOf(a.k)-EX_CATS.indexOf(b.k));
+    html = `<h3>${sh.xid?"Egzersizi düzenle":"Programa egzersiz ekle"} · <span class="mono" style="font-size:20px">${esc(p.code)}</span></h3>
+      <fieldset><legend>Egzersiz</legend>${sel("exId","Kütüphaneden",[["","Kütüphanede yok (aşağıya yazın)"],...opts.map(x=>[x.id,`${x.k?x.k+" · ":""}${x.name}${x.custom?" ★":""}`])],it.exId)}
+        <div class="f wide"><label for="f-name">Ad</label><input id="f-name" name="name" value="${esc(it.name||"")}" placeholder="Kütüphaneden seçince dolar"></div>
+        <div class="f wide"><label for="f-dose">Doz</label><input id="f-dose" name="dose" value="${esc(it.dose||"")}" placeholder="2 set × 10 tekrar, 10 sn tut"></div>
+        ${sel("freq","Sıklık",FREQS,it.freq)}${fld("start","Başlangıç",it.start,"date")}${fld("end","Bitiş (isteğe bağlı)",it.end,"date")}
+        <div class="f wide"><label for="f-note">Hastaya not / progresyon</label><textarea id="f-note" name="note" rows="2" placeholder="Örn. 2. haftadan itibaren tutma süresi 15 sn">${esc(it.note||"")}</textarea></div></fieldset>`;
+  } else if(sh.type==="icf"){
+    const p=S.patients.find(x=>x.id===sh.pid);
+    const prev=[...(p.icf||[])].sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const r = sh.aid ? (p.icf||[]).find(x=>x.id===sh.aid) : {date:today(), r:{}, extra:[], pf:prev?.pf||"", goal:prev?.goal||""};
+    const list=icfFor(p);
+    const ex=[...(r.extra||[]), {c:"",t:"",q:""},{c:"",t:"",q:""}].slice(0, Math.max(2,(r.extra||[]).length+1));
+    html = `<h3>${sh.aid?"ICF profilini düzenle":"ICF değerlendirmesi"} · <span class="mono" style="font-size:20px">${esc(p.code)}</span></h3>
+      <fieldset><legend>Tarih</legend>${fld("date","Değerlendirme tarihi",r.date,"date","required")}</fieldset>
+      ${["b","s","d","e"].map(k=>{ const cs=list.filter(x=>x.c[0]===k); return `<fieldset class="icfset"><legend>${ICF_COMP[k]}</legend>${cs.map(x=>`<div class="f"><label for="f-icf-${x.c}"><span class="mono">${x.c}</span> ${esc(x.t)}</label>
+        <select id="f-icf-${x.c}" name="icf_${x.c}">${(k==="e"?ICF_E:ICF_Q).map(([v,l])=>`<option value="${v}" ${String(r.r?.[x.c]??"")===v?"selected":""}>${esc(l)}</option>`).join("")}</select></div>`).join("")}</fieldset>`; }).join("")}
+      <fieldset><legend>Listede olmayan kategoriler</legend>${ex.map((x,i)=>`<div class="f"><label for="f-xc${i}">Kod</label><input id="f-xc${i}" name="xc${i}" value="${esc(x.c)}" placeholder="d470"></div>
+        <div class="f"><label for="f-xt${i}">Ad</label><input id="f-xt${i}" name="xt${i}" value="${esc(x.t)}" placeholder="Ulaşım araçlarını kullanma"></div>
+        <div class="f"><label for="f-xq${i}">Niteleyici</label><input id="f-xq${i}" name="xq${i}" value="${esc(x.q)}" placeholder="0–4"></div>`).join("")}</fieldset>
+      <div class="f"><label for="f-pf">Kişisel faktörler</label><textarea id="f-pf" name="pf" rows="2" placeholder="Yaş, meslek, baş etme tarzı, hareket korkusu…">${esc(r.pf||"")}</textarea></div>
+      <div class="f"><label for="f-goal">Hasta ile birlikte belirlenen hedef</label><textarea id="f-goal" name="goal" rows="2" placeholder="6 hafta içinde 30 dk ağrısız masa başı çalışma (d415)">${esc(r.goal||"")}</textarea></div>`;
+  } else if(sh.type==="pub"){
+    const x = sh.xid ? S.pubs.find(y=>y.id===sh.xid) : {type:"Makale", status:"Yazım"};
+    html = `<h3>${sh.xid?"Yayını düzenle":"Yeni yayın"}</h3>
+      <fieldset><legend>Yayın</legend><div class="f wide"><label for="f-title">Başlık</label><textarea id="f-title" name="title" rows="2" required>${esc(x.title||"")}</textarea></div>
+        ${sel("type","Tür",PUB_TYPES,x.type)}${sel("status","Durum",PUB_STATUS,x.status)}
+        <div class="f wide"><label for="f-venue">Dergi / kongre</label><input id="f-venue" name="venue" value="${esc(x.venue||"")}"></div>
+        ${sel("student","İlgili öğrenci",[["","—"],...S.students.filter(y=>y.level!=="Stajyer").map(y=>[y.id,y.name])],x.student)}
+        ${sel("study","İlgili çalışma",[["","—"],...S.studies.map(y=>[y.id,y.name])],x.study)}</fieldset>
+      <fieldset><legend>Takvim</legend>${fld("deadline","Son tarih",x.deadline,"date")}<div class="f"><label for="f-deadlineNote">Ne için</label><input id="f-deadlineNote" name="deadlineNote" value="${esc(x.deadlineNote||"")}" placeholder="Revizyon teslimi"></div></fieldset>
+      <div class="f"><label for="f-note">Not</label><textarea id="f-note" name="note" rows="3">${esc(x.note||"")}</textarea></div>`;
+  } else if(sh.type==="customEx"){
+    const src = allEx().find(x=>x.id===(sh.xid||sh.copyFrom)) || {g:S.exFilter!=="ALL"?S.exFilter:"LOMBER", k:"Stabilizasyon"};
+    html = `<h3>${sh.xid?"Egzersizi düzenle":sh.copyFrom?"Kopyala ve düzenle":"Yeni egzersiz"}</h3>
+      ${sh.copyFrom?`<p class="hint">Hazır egzersizin size ait bir kopyası oluşur; isterseniz orijinalini gizleyebilirsiniz.</p>`:""}
+      <fieldset><legend>Egzersiz</legend><div class="f wide"><label for="f-name">Ad</label><input id="f-name" name="name" required value="${esc(sh.copyFrom?src.name+" (hocanın)":src.name||"")}"></div>
+        ${sel("g","Bölge",[["LOMBER","Bel"],["SERVIKAL","Boyun"],["ORTAK","Ortak"]],src.g)}${sel("k","Kategori",EX_CATS,src.k)}
+        <div class="f wide"><label for="f-dose">Varsayılan doz</label><input id="f-dose" name="dose" value="${esc(src.dose||"")}"></div>
+        <div class="f wide"><label for="f-cue">Nasıl yapılır (reçetede hastaya giden açıklama)</label><textarea id="f-cue" name="cue" rows="4">${esc(src.cue||"")}</textarea></div></fieldset>`;
+  } else if(sh.type==="play"){
+    const ex=allEx().find(x=>x.id===sh.xid);
+    root.innerHTML = `<div class="sheet-bg" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><h3>${esc(ex?.name||"Video")}</h3>
+      ${mediaHtml(sh.xid,false)}<p class="hint">${esc(ex?.cue||"")}</p>
+      <div class="sheet-foot"><span></span><button type="button" class="btn primary" data-act="close">Kapat</button></div></div></div>`; return;
+  } else if(sh.type==="exVideo"){
+    const ex=allEx().find(x=>x.id===sh.xid); const m=S.exMedia[sh.xid]||{};
+    html = `<h3>Video · ${esc(ex?.name||"")}</h3>
+      ${m.assetId||m.link?`<div class="f"><label>Şu anki video</label>${mediaHtml(sh.xid,false)}</div>`:""}
+
+      <fieldset><legend>Ya da link</legend><div class="f wide"><label for="f-vlink">YouTube, Google Drive veya başka bir video linki</label>
+        <input id="f-vlink" name="vlink" type="url" value="${esc(m.link||"")}" placeholder="https://"></div>
+        <p class="hint f wide" style="margin:0">Videoyu YouTube'a “liste dışı” olarak ya da Google Drive'a “bağlantıya sahip herkes” ayarıyla yükleyip linkini buraya yapıştırın. Link PDF reçetede QR kod olarak, kopyalanan metinde de bağlantı olarak hastaya gider.</p></fieldset>`;
+  } else if(sh.type==="backup"){
+    const lb=window.__LOCAL?.lastBackup();
+    root.innerHTML = `<div class="sheet-bg" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><h3>Yedek</h3>
+      <p class="hint">Bu dosya sürümünde tüm kayıtlar yalnızca bu bilgisayardaki tarayıcıda saklanır. Tarayıcı verileri temizlenirse kaybolabilir; düzenli yedek alın ve yedek dosyasını güvenli bir yerde saklayın.</p>
+      <div class="panel"><div class="panel-h"><h3>Yedeği indir</h3></div><p class="hint" style="margin-top:0">${S.patients.length} hasta, ${S.students.length} öğrenci, ${(S.customEx||[]).length} kendi egzersiziniz. Son yedek: ${lb?fmtDate(lb.slice(0,10)):"hiç alınmadı"}.</p>
+        <button class="btn primary" data-act="doBackup">Yedeği indir</button></div>
+      <div class="panel"><div class="panel-h"><h3>Yedekten geri yükle</h3></div><p class="hint" style="margin-top:0">Başka bir bilgisayara taşırken ya da veriler silindiyse kullanın. Bu bilgisayardaki mevcut kayıtların yerini alır.</p>
+        <input id="f-restore" type="file" accept=".json,application/json">
+        ${S.restoreData?`<div class="confirm" style="margin-top:10px">Yedekte ${S.restoreData.np} hasta ve ${S.restoreData.ns} öğrenci var. Mevcut kayıtlar silinip bunlar yüklenecek. <button type="button" class="btn danger" data-act="doRestore">Evet, yükle</button><button type="button" class="btn ghost" data-act="noRestore">Vazgeç</button></div>`:""}</div>
+      <div class="sheet-foot"><span></span><button type="button" class="btn" data-act="close">Kapat</button></div></div></div>`; return;
+  } else if(sh.type==="copy"){
+    root.innerHTML = `<div class="sheet-bg" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><h3>Metni kopyalayın</h3>
+      <p class="hint">Bu görünümde otomatik kopyalama çalışmadı. Metin seçili; Ctrl+C (veya uzun basıp Kopyala) ile alın.</p>
+      <textarea class="csv" id="copyText" readonly style="height:320px">${esc(sh.text)}</textarea>
+      <div class="sheet-foot"><span></span><button type="button" class="btn primary" data-act="close">Kapat</button></div></div></div>`;
+    const ta=$("#copyText"); ta.focus(); ta.select(); return;
+  } else if(sh.type==="student"){
+    const s = sh.sid ? S.students.find(x=>x.id===sh.sid) : {level:"Stajyer", stage:"Ders dönemi"};
+    html = `<h3>${sh.sid?"Öğrenciyi düzenle":"Yeni öğrenci"}</h3>
+      <fieldset><legend>Öğrenci</legend><div class="f wide"><label for="f-name">Ad soyad</label><input id="f-name" name="name" required value="${esc(s.name||"")}"></div>
+        ${sel("level","Düzey",["Stajyer","YL","Doktora"],s.level)}${fld("start","Başlangıç",s.start,"date")}${sel("stage","Aşama",STAGES,s.stage)}</fieldset>
+      <fieldset><legend>Tez</legend><div class="f wide"><label for="f-topic">Tez konusu veya staj dönemi</label><textarea id="f-topic" name="topic" rows="2">${esc(s.topic||"")}</textarea></div>
+</fieldset>
+      <fieldset><legend>Takvim</legend>${fld("nextMeet","Sonraki görüşme",s.nextMeet,"date")}${fld("deadline","Son tarih",s.deadline,"date")}
+        <div class="f"><label for="f-deadlineNote">Son tarih ne için</label><input id="f-deadlineNote" name="deadlineNote" value="${esc(s.deadlineNote||"")}" placeholder="TİK raporu"></div></fieldset>`;
+  }
+  const canDel = (sh.type==="patient"&&sh.pid)||(sh.type==="assess"&&sh.aid)||(sh.type==="study"&&sh.sid)||(sh.type==="student"&&sh.sid)||(sh.type==="exercise"&&sh.xid)||(sh.type==="pub"&&sh.xid)||(sh.type==="exVideo"&&S.exMedia[sh.xid])||(sh.type==="customEx"&&sh.xid)||(sh.type==="icf"&&sh.aid);
+  const delLabel = sh.type==="patient"?"Hastayı ve tüm değerlendirmelerini sil":sh.type==="assess"?"Bu değerlendirmeyi sil":sh.type==="student"?"Öğrenciyi ve notlarını sil":sh.type==="exercise"?"Programdan çıkar":sh.type==="pub"?"Yayını sil":sh.type==="exVideo"?"Videoyu kaldır":sh.type==="customEx"?"Egzersizi kütüphaneden sil":sh.type==="icf"?"Bu ICF değerlendirmesini sil":"Çalışmayı sil (hastalar kalır)";
+  root.innerHTML = `<div class="sheet-bg" data-act="closeBg"><form class="sheet" id="sheetForm" role="dialog" aria-modal="true">${html}
+    <div class="sheet-foot">${canDel ? (S.confirm ? `<span class="confirm">Emin misiniz? <button type="button" class="btn danger" data-act="doDelete">Evet, sil</button><button type="button" class="btn ghost" data-act="noDelete">Vazgeç</button></span>` : `<button type="button" class="btn danger ghost" data-act="askDelete">${delLabel}</button>`) : "<span></span>"}
+      <span class="actions"><button type="button" class="btn" data-act="close">İptal</button><button type="submit" class="btn primary" ${S.busy?"disabled":""}>${S.busy?"Yükleniyor…":"Kaydet"}</button></span></div></form></div>`;
+  updateCalc();
+  const first=root.querySelector("input,select"); if(first && !S.confirm) first.focus({preventScroll:true});
+}
+function updateCalc(){
+  const f=$("#sheetForm"); if(!f) return; const v=n=>num(f.elements[n]?.value);
+  const set=(k,t)=>{ const el=f.querySelector(`[data-calc="${k}"]`); if(el) el.textContent=t; };
+  if(f.elements.odi_raw){ const o=v("odi_raw"); set("odi", o==null?"—":fmt(o/50*100)+" %"+(o>50?" (50'yi aşamaz)":"")); }
+  if(f.elements.l4r){ const s=asym(v("l4r"),v("l4l")); set("asym", s==null?"—":fmt(s)+" %"+(v("l4r")!=null&&v("l4l")!=null?(v("l4r")<v("l4l")?" · sağ küçük":v("l4r")>v("l4l")?" · sol küçük":""):"")); }
+  if(f.elements.rest_mm){ const r=v("rest_mm"),c=v("contr_mm"); set("ratio", r&&c!=null?fmt(c/r,2)+" ×":"—"); }
+  if(f.elements.ndi_raw){ const o=v("ndi_raw"); set("ndi", o==null?"—":fmt(o/50*100)+" %"+(o>50?" (50'yi aşamaz)":"")); }
+  if(f.elements.c5r){ const s=asym(v("c5r"),v("c5l")); set("casym", s==null?"—":fmt(s)+" %"+(v("c5r")!=null&&v("c5l")!=null?(v("c5r")<v("c5l")?" · sağ küçük":v("c5r")>v("c5l")?" · sol küçük":""):"")); }
+}
+async function saveVideo(f){
+  const id=S.sheet.xid; const file=f.elements.vfile?.files?.[0]; const link=f.elements.vlink.value.trim();
+  const old=S.exMedia[id]||{};
+  if(file){
+    if(file.size>20*1024*1024){ toast("Dosya 20 MB'tan büyük; daha kısa bir klip ya da link deneyin."); return; }
+    const type = /\.webm$/i.test(file.name)?"video/webm":"video/mp4";
+    S.busy=true; renderSheet();
+    try{ const r=await S.assets.upload(file,{type}); S.exMedia={...S.exMedia,[id]:{assetId:r.id}};
+      if(old.assetId) S.assets.delete(old.assetId).catch(()=>{});
+      saveMeta(); toast("Video yüklendi.");
+    }catch(e){ S.busy=false; renderSheet(); toast(e?.code==="too_large"?"Dosya çok büyük (en fazla 20 MB).":e?.code==="unsupported_type"?"Bu dosya türü desteklenmiyor; MP4 deneyin.":e?.code==="quota_or_state"?"Video alanı dolu; eski videoları kaldırın.":"Yüklenemedi, tekrar deneyin."); return; }
+    S.busy=false;
+  } else if(link){
+    if(!safeLink(link)){ toast("Link https:// ile başlamalı."); return; }
+    S.exMedia={...S.exMedia,[id]:{link}}; if(old.assetId) S.assets?.delete(old.assetId).catch(()=>{});
+    saveMeta(); toast("Video linki kaydedildi.");
+  } else { toast("Bir dosya seçin ya da link girin."); return; }
+  S.sheet=null; S.confirm=null; render();
+}
+function submitSheet(f){
+  const sh=S.sheet; if(sh.type==="exVideo"){ if(!S.busy) saveVideo(f); return; }
+  const d=Object.fromEntries(new FormData(f).entries());
+  if(sh.type==="patient"){
+    const code=d.code.trim(); if(!code){ toast("Hasta kodu gerekli."); return; }
+    if(S.patients.some(p=>p.code.toLowerCase()===code.toLowerCase() && p.id!==sh.pid)){ toast("Bu kod zaten kullanılıyor."); return; }
+    const base = sh.pid ? S.patients.find(p=>p.id===sh.pid) : {id:rid("p-"), kind:"patient", assessments:[]};
+    const p = {...base, code, group:d.group, sex:d.sex, age:num(d.age), dx:d.dx.trim(), surgery:d.surgery.trim(), surgeryDate:d.surgeryDate, type:d.type, owner:d.type==="OZEL"?"":d.owner, pkg:num(d.pkg)};
+    upsertPatient(p); S.sel=p.id; S.view="hastalar"; toast("Hasta kaydedildi.");
+  } else if(sh.type==="assess"){
+    const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid)));
+    const numKeys=["nrs","odi_raw","ndi_raw","l4r","l4l","l5r","l5l","c4r","c4l","c5r","c5l","rest_mm","contr_mm","ccft","ccft_pi","flex","ext","rotR","rotL"];
+    const lim={nrs:10,odi_raw:50,ndi_raw:50,ccft_pi:100};
+    for(const k of Object.keys(lim)){ if(d[k]!==undefined && num(d[k])!=null && (num(d[k])<0||num(d[k])>lim[k])){ toast(`${k.toUpperCase()} 0–${lim[k]} aralığında olmalı.`); return; } }
+    const a={id: sh.aid || rid("a-")};
+    for(const [k,v] of Object.entries(d)){ a[k] = numKeys.includes(k) ? num(v) : (typeof v==="string"?v.trim():v); }
+    if(a.goutallier!==undefined) a.goutallier = a.goutallier===""?null:+a.goutallier;
+    const i=p.assessments.findIndex(x=>x.id===a.id); if(i<0) p.assessments.push(a); else p.assessments[i]=a;
+    upsertPatient(p); toast("Değerlendirme kaydedildi.");
+  } else if(sh.type==="study"){
+    const name=d.name.trim(); if(!name){ toast("Çalışma adı gerekli."); return; }
+    const arms=d.arms.split(",").map(s=>s.trim()).filter(Boolean);
+    const s={id: sh.sid||rid("st-"), name, arms: arms.length?arms:["Tek kol"], metric:d.metric};
+    const i=S.studies.findIndex(x=>x.id===s.id); if(i<0) S.studies.push(s); else S.studies[i]=s;
+    saveMeta(); S.studySel=s.id; toast("Çalışma kaydedildi.");
+  } else if(sh.type==="exercise"){
+    const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid)));
+    const ex=allEx().find(x=>x.id===d.exId);
+    const name=(d.name.trim()||ex?.name||""); if(!name){ toast("Egzersiz seçin veya ad yazın."); return; }
+    p.program=p.program||{items:[],adherence:[]}; p.program.items=p.program.items||[];
+    const it={id:sh.xid||rid("x-"), exId:d.exId, name, dose:d.dose.trim()||ex?.dose||"", freq:d.freq, start:d.start, end:d.end, note:d.note.trim()};
+    const i=p.program.items.findIndex(x=>x.id===it.id); if(i<0) p.program.items.push(it); else p.program.items[i]=it;
+    upsertPatient(p); toast("Program güncellendi.");
+  } else if(sh.type==="icf"){
+    const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid)));
+    const r={}; Object.entries(d).forEach(([k,v])=>{ if(k.startsWith("icf_") && v!=="") r[k.slice(4)]=v; });
+    const extra=[]; for(let i=0;i<10;i++){ const c=(d["xc"+i]||"").trim().toLowerCase(); if(c) extra.push({c, t:(d["xt"+i]||"").trim(), q:(d["xq"+i]||"").trim()}); }
+    if(!Object.keys(r).length && !extra.length){ toast("En az bir kategori için niteleyici seçin."); return; }
+    const rec={id:sh.aid||rid("icf-"), date:d.date||today(), r, extra, pf:d.pf.trim(), goal:d.goal.trim()};
+    p.icf=p.icf||[]; const i=p.icf.findIndex(x=>x.id===rec.id); if(i<0) p.icf.push(rec); else p.icf[i]=rec;
+    upsertPatient(p); toast("ICF profili kaydedildi.");
+  } else if(sh.type==="pub"){
+    const title=d.title.trim(); if(!title){ toast("Başlık gerekli."); return; }
+    const base = sh.xid ? S.pubs.find(y=>y.id===sh.xid) : {id:rid("pb-"), kind:"pub"};
+    upsertPub({...base, title, type:d.type, status:d.status, venue:d.venue.trim(), student:d.student, study:d.study, deadline:d.deadline, deadlineNote:d.deadlineNote.trim(), note:d.note.trim()});
+    toast("Yayın kaydedildi.");
+  } else if(sh.type==="customEx"){
+    const name=d.name.trim(); if(!name){ toast("Ad gerekli."); return; }
+    const ex={id:sh.xid||rid("xc-"), g:d.g, k:d.k, name, dose:d.dose.trim(), cue:d.cue.trim(), custom:true};
+    const list=[...(S.customEx||[])]; const i=list.findIndex(x=>x.id===ex.id); if(i<0) list.push(ex); else list[i]=ex; S.customEx=list;
+    if(sh.copyFrom && S.exMedia[sh.copyFrom] && !S.exMedia[ex.id]) S.exMedia={...S.exMedia,[ex.id]:{...S.exMedia[sh.copyFrom]}};
+    saveMeta(); toast(sh.xid?"Egzersiz güncellendi.":"Kütüphaneye eklendi.");
+  } else if(sh.type==="student"){
+    const name=d.name.trim(); if(!name){ toast("Ad gerekli."); return; }
+    const base = sh.sid ? S.students.find(x=>x.id===sh.sid) : {id:rid("s-"), kind:"student", log:[]};
+    const s={...base, name, level:d.level, start:d.start, stage:d.stage, topic:d.topic.trim(), nextMeet:d.nextMeet, deadline:d.deadline, deadlineNote:d.deadlineNote.trim()};
+    upsertStudent(s); S.stuSel=s.id; toast("Öğrenci kaydedildi.");
+  }
+  S.sheet=null; S.confirm=null; render();
+}
+function doDelete(){
+  const sh=S.sheet;
+  if(sh.type==="patient"){ S.patients=S.patients.filter(p=>p.id!==sh.pid); save(sh.pid,null); S.sel=null; toast("Hasta silindi."); }
+  else if(sh.type==="assess"){ const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid))); p.assessments=p.assessments.filter(a=>a.id!==sh.aid); upsertPatient(p); toast("Değerlendirme silindi."); }
+  else if(sh.type==="study"){ S.studies=S.studies.filter(s=>s.id!==sh.sid); saveMeta();
+    S.patients.filter(p=>p.study===sh.sid).forEach(p=>upsertPatient({...p,study:"",arm:""})); toast("Çalışma silindi."); }
+  else if(sh.type==="exercise"){ const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid))); p.program.items=p.program.items.filter(x=>x.id!==sh.xid); upsertPatient(p); toast("Programdan çıkarıldı."); }
+  else if(sh.type==="icf"){ const p=JSON.parse(JSON.stringify(S.patients.find(x=>x.id===sh.pid))); p.icf=(p.icf||[]).filter(x=>x.id!==sh.aid); upsertPatient(p); toast("ICF değerlendirmesi silindi."); }
+  else if(sh.type==="customEx"){ S.customEx=(S.customEx||[]).filter(x=>x.id!==sh.xid); saveMeta(); toast("Egzersiz silindi; programlardaki kayıtlar adıyla kalır."); }
+  else if(sh.type==="exVideo"){ const m=S.exMedia[sh.xid]; if(m?.assetId) S.assets?.delete(m.assetId).catch(()=>{}); const c={...S.exMedia}; delete c[sh.xid]; S.exMedia=c; saveMeta(); toast("Video kaldırıldı."); }
+  else if(sh.type==="pub"){ S.pubs=S.pubs.filter(y=>y.id!==sh.xid); save(sh.xid,null); toast("Yayın silindi."); }
+  else if(sh.type==="student"){ S.students=S.students.filter(s=>s.id!==sh.sid); save(sh.sid,null); S.stuSel=null; toast("Öğrenci silindi."); }
+  S.sheet=null; S.confirm=null; render();
+}
+
+// ---------- events
+document.addEventListener("click", e => {
+  const t=e.target.closest("[data-act]"); if(!t) return;
+  const a=t.dataset.act;
+  if(a==="closeBg" && e.target!==t) return;
+  switch(a){
+    case "view": if(t.dataset.v==="__backup"){ S.sheet={type:"backup"}; S.confirm=null; render(); break; } S.view=t.dataset.v; S.csvText=null; render(); break;
+    case "filter": S.filter=t.dataset.v; S.sel=null; render(); break;
+    case "sel": S.sel=t.dataset.id; render(); if(innerWidth<820) $(".detail")?.scrollIntoView({behavior:"smooth",block:"start"}); break;
+    case "metric": S.metric[t.dataset.id]=t.dataset.v; render(); break;
+    case "newPatient": S.sheet={type:"patient"}; S.confirm=null; render(); break;
+    case "editPatient": S.sheet={type:"patient",pid:t.dataset.id}; S.confirm=null; render(); break;
+    case "newA": S.sheet={type:"assess",pid:t.dataset.id}; S.confirm=null; render(); break;
+    case "editA": S.sheet={type:"assess",pid:t.dataset.id,aid:t.dataset.a}; S.confirm=null; render(); break;
+    case "newStudy": S.sheet={type:"study"}; S.confirm=null; render(); break;
+    case "editStudy": S.sheet={type:"study",sid:t.dataset.v}; S.confirm=null; render(); break;
+    case "exVideo": S.sheet={type:"exVideo",xid:t.dataset.x}; S.confirm=null; render(); break;
+    case "play": S.sheet={type:"play",xid:t.dataset.x}; render(); break;
+    case "newPub": S.sheet={type:"pub"}; S.confirm=null; render(); break;
+    case "editPub": S.sheet={type:"pub",xid:t.dataset.id}; S.confirm=null; render(); break;
+    case "pubFilter": S.pubFilter=t.dataset.v; render(); break;
+    case "libTab": S.libTab=t.dataset.v; render(); break;
+    case "tfilter": S.tfilter=t.dataset.v; S.sel=null; render(); break;
+    case "goStu": S.view="ogrenciler"; render(); break;
+    case "newEx": S.sheet={type:"exercise",pid:t.dataset.id}; S.confirm=null; render(); break;
+    case "editEx": S.sheet={type:"exercise",pid:t.dataset.id,xid:t.dataset.x}; S.confirm=null; render(); break;
+    case "copyProg": copyText(progText(S.patients.find(x=>x.id===t.dataset.id))); break;
+    case "newCustomEx": S.sheet={type:"customEx"}; S.confirm=null; render(); break;
+    case "loadDemo": loadDemo(); break;
+    case "doBackup": doBackup(); break;
+    case "doRestore": { const docs=S.restoreData.docs; S.restoreData=null; S.sheet=null; S.sel=null; S.stuSel=null; window.__LOCAL.load(docs); render(); toast("Yedek yüklendi."); break; }
+    case "noRestore": S.restoreData=null; renderSheet(); break;
+    case "allSess": S.allSess = S.allSess===t.dataset.id ? null : t.dataset.id; render(); break;
+    case "clearDemo": clearDemo(); break;
+    case "newIcf": S.sheet={type:"icf",pid:t.dataset.id}; S.confirm=null; render(); break;
+    case "editIcf": S.sheet={type:"icf",pid:t.dataset.id,aid:t.dataset.a}; S.confirm=null; render(); break;
+    case "csvIcf": exportIcf(t.dataset.v); break;
+    case "editCustomEx": S.sheet={type:"customEx",xid:t.dataset.x}; S.confirm=null; render(); break;
+    case "copyEx": S.sheet={type:"customEx",copyFrom:t.dataset.x}; S.confirm=null; render(); break;
+    case "hideEx": { const h=S.hiddenEx||[]; S.hiddenEx = h.includes(t.dataset.x) ? h.filter(x=>x!==t.dataset.x) : [...h,t.dataset.x]; saveMeta(); render(); break; }
+    case "toggleHidden": S.showHidden=!S.showHidden; render(); break;
+    case "printProg": printProgram(t.dataset.id); break;
+    case "exFilter": S.exFilter=t.dataset.v; render(); break;
+    case "pSel": S.sel=t.dataset.id; S.view="hastalar"; render(); break;
+    case "stuSel": S.stuSel=t.dataset.id; if(S.view!=="ogrenciler") S.view="ogrenciler"; render(); break;
+    case "newStu": S.sheet={type:"student"}; S.confirm=null; render(); break;
+    case "editStu": S.sheet={type:"student",sid:t.dataset.id}; S.confirm=null; render(); break;
+    case "study": S.studySel=t.dataset.v; S.resMetric=null; render(); break;
+    case "resMetric": S.resMetric=t.dataset.v; render(); break;
+    case "csv": exportCsv(t.dataset.v); break;
+    case "copyCsv": { const ta=$("#csvText"); navigator.clipboard?.writeText(S.csvText).then(()=>toast("Kopyalandı."),()=>{ta.focus();ta.select();toast("Metni seçtim; Ctrl+C ile kopyalayın.");}); if(!navigator.clipboard){ta.focus();ta.select();} break; }
+    case "closeCsv": S.csvText=null; render(); break;
+    case "close": case "closeBg": S.sheet=null; S.confirm=null; render(); break;
+    case "askDelete": S.confirm=true; renderSheet(); break;
+    case "noDelete": S.confirm=null; renderSheet(); break;
+    case "doDelete": doDelete(); break;
+  }
+});
+document.addEventListener("submit", e => { if(e.target.id==="sheetForm"){ e.preventDefault(); submitSheet(e.target); } else if(e.target.id==="logForm"){ e.preventDefault(); addLog(e.target); }
+  else if(e.target.id==="adhForm"){ e.preventDefault(); addAdh(e.target); }
+  else if(e.target.id==="sessForm"){ e.preventDefault(); addSess(e.target); }
+  else if(e.target.id==="apptForm"){ e.preventDefault(); setAppt(e.target); } });
+document.addEventListener("input", e => { if(e.target.closest("#sheetForm")) updateCalc(); });
+let qT; document.addEventListener("input", e => { if(e.target.id==="f-exq"){ clearTimeout(qT); qT=setTimeout(()=>{ S.exQ=e.target.value; render(); const el=$("#f-exq"); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } },200); } });
+document.addEventListener("change", e => { if(e.target.id==="f-restore"){ readRestore(e.target.files?.[0]); return; }
+  if(e.target.id==="f-excat"){ S.exCat=e.target.value; render(); return; } if(e.target.id==="f-exId"){ const ex=allEx().find(x=>x.id===e.target.value); const f=e.target.form; if(ex){ f.elements.name.value=ex.name; f.elements.dose.value=ex.dose||""; } } });
+document.addEventListener("keydown", e => { if(e.key==="Escape" && S.sheet){ S.sheet=null; S.confirm=null; render(); } });
+
+init();
+})();
+</script>
+
+</body></html>
