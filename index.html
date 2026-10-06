@@ -2,7 +2,30 @@
   var KEY="omurga-defteri-veri"; var store={};
   try{ store=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ store={}; }
   var subs=[];
-  function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){ throw {code:"quota_exceeded", message:"Tarayıcı depolama alanı dolu"}; } }
+  function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){ throw {code:"quota_exceeded", message:"Tarayıcı depolama alanı dolu"}; } scheduleAuto(); }
+
+  // ---- automatic backup to a file the user picks (iCloud Drive / Google Drive folder), Chrome & Edge only
+  var auto={handle:null, status:"off", name:"", last:null, err:""}; var autoT=null;
+  function notify(){ try{ window.__LOCAL && window.__LOCAL.onAuto && window.__LOCAL.onAuto(); }catch(e){} }
+  function idb(){ return new Promise(function(ok,no){ var r=indexedDB.open("omurga-defteri",1); r.onupgradeneeded=function(){ r.result.createObjectStore("kv"); }; r.onsuccess=function(){ ok(r.result); }; r.onerror=function(){ no(r.error); }; }); }
+  function idbSet(k,v){ return idb().then(function(db){ return new Promise(function(ok,no){ var t=db.transaction("kv","readwrite"); if(v==null) t.objectStore("kv").delete(k); else t.objectStore("kv").put(v,k); t.oncomplete=ok; t.onerror=function(){ no(t.error); }; }); }); }
+  function idbGet(k){ return idb().then(function(db){ return new Promise(function(ok,no){ var r=db.transaction("kv").objectStore("kv").get(k); r.onsuccess=function(){ ok(r.result); }; r.onerror=function(){ no(r.error); }; }); }); }
+  function payload(){ return JSON.stringify({app:"omurga-defteri", version:1, created:new Date().toISOString(), docs:store}, null, 1); }
+  async function writeAuto(){
+    if(!auto.handle) return;
+    try{
+      var perm = await auto.handle.queryPermission({mode:"readwrite"});
+      if(perm!=="granted"){ auto.status="needs"; notify(); return; }
+      var w = await auto.handle.createWritable(); await w.write(payload()); await w.close();
+      auto.status="ok"; auto.last=new Date().toISOString(); auto.err="";
+      try{ localStorage.setItem(KEY+"-son-yedek", auto.last); localStorage.setItem(KEY+"-oto-son", auto.last); }catch(e){}
+      notify();
+    }catch(e){ auto.status="error"; auto.err=String(e && e.message || e); notify(); }
+  }
+  function scheduleAuto(){ if(!auto.handle) return; clearTimeout(autoT); autoT=setTimeout(writeAuto, 1200); }
+  var autoSupported = typeof window.showSaveFilePicker==="function";
+  (async function(){ if(!autoSupported) return; try{ var h=await idbGet("autoHandle"); if(h){ auto.handle=h; auto.name=h.name; try{ auto.last=localStorage.getItem(KEY+"-oto-son"); }catch(e){}
+      var perm=await h.queryPermission({mode:"readwrite"}); auto.status = perm==="granted" ? "ok" : "needs"; if(perm==="granted") scheduleAuto(); notify(); } }catch(e){} })();
   function snap(){ return {docs:Object.keys(store).map(function(k){ return {id:k, data:function(){ return JSON.parse(JSON.stringify(store[k])); }}; })}; }
   function fire(){ var s=snap(); subs.forEach(function(f){ f(s); }); }
   var db={collection:function(){ return {
@@ -19,7 +42,15 @@
     dump:function(){ return JSON.parse(JSON.stringify(store)); },
     load:function(docs){ store=JSON.parse(JSON.stringify(docs)); persist(); fire(); },
     lastBackup:function(){ try{ return localStorage.getItem(KEY+"-son-yedek"); }catch(e){ return null; } },
-    markBackup:function(){ try{ localStorage.setItem(KEY+"-son-yedek", new Date().toISOString()); }catch(e){} }
+    markBackup:function(){ try{ localStorage.setItem(KEY+"-son-yedek", new Date().toISOString()); }catch(e){} },
+    autoSupported:autoSupported,
+    autoInfo:function(){ return {status:auto.status, name:auto.name, last:auto.last, err:auto.err}; },
+    chooseAuto:async function(){
+      var h = await window.showSaveFilePicker({suggestedName:"omurga-defteri-otomatik-yedek.json", types:[{description:"Defter yedeği", accept:{"application/json":[".json"]}}]});
+      auto.handle=h; auto.name=h.name; await idbSet("autoHandle", h); await writeAuto(); return auto.status;
+    },
+    resumeAuto:async function(){ if(!auto.handle) return "off"; var p=await auto.handle.requestPermission({mode:"readwrite"}); if(p==="granted"){ await writeAuto(); } else { auto.status="needs"; notify(); } return auto.status; },
+    stopAuto:async function(){ clearTimeout(autoT); auto={handle:null,status:"off",name:"",last:null,err:""}; try{ await idbSet("autoHandle", null); localStorage.removeItem(KEY+"-oto-son"); }catch(e){} notify(); }
   };
 })();
 </script>
@@ -435,7 +466,10 @@ function renderTabs(){
 function banner(){
   if(S.persist==="off") return `<div class="banner"><span class="sp"><b>Kayıt kapalı.</b> Bu görünümde veriler saklanamıyor; sayfa kapanınca girdileriniz kaybolur. Defteri claude.ai'de oturum açarak kullanın.</span></div>`;
   if(S.readonly) return `<div class="banner"><span class="sp"><b>Yalnızca görüntüleme.</b> Bu bağlantı kayıt yapma izni vermiyor. Defteri paylaşan kişiden “düzenleyebilir” izinli bağlantı isteyin.</span></div>`;
-  if(window.__LOCAL && (S.patients.length||S.students.length) && !hasDemo()){
+  const ai = window.__LOCAL?.autoInfo?.();
+  if(ai && ai.status==="needs") return `<div class="banner"><span class="sp"><b>Otomatik yedek duraklatıldı.</b> Chrome, “${esc(ai.name)}” dosyasına yazmak için yeniden izin istiyor. Bir kez tıklayıp “Her ziyarette izin ver”i seçin.</span><button class="btn primary" data-act="resumeAuto">Otomatik yedeği sürdür</button></div>`;
+  if(ai && ai.status==="error") return `<div class="banner"><span class="sp"><b>Otomatik yedek yazılamadı.</b> Dosya taşınmış ya da silinmiş olabilir. Yedek sekmesinden dosyayı yeniden seçin.</span><button class="btn" data-act="view" data-v="__backup">Yedek</button></div>`;
+  if(window.__LOCAL && (S.patients.length||S.students.length) && !hasDemo() && !(ai && ai.status==="ok")){
     const lb=window.__LOCAL.lastBackup(); const days = lb ? Math.floor((Date.now()-new Date(lb))/864e5) : null;
     if(days==null || days>=30) return `<div class="banner"><span class="sp"><b>${days==null?"Henüz yedek alınmadı.":`Son yedek ${days} gün önce.`}</b> Veriler yalnızca bu bilgisayardaki tarayıcıda duruyor. Ayda bir yedek almanız önerilir.</span><button class="btn primary" data-act="doBackup">Yedeği indir</button></div>`;
   }
@@ -482,6 +516,22 @@ function clearDemo(){
   S.patients.filter(p=>p.demo).forEach(p=>save(p.id,null)); S.students.filter(x=>x.demo).forEach(x=>save(x.id,null));
   S.patients=S.patients.filter(p=>!p.demo); S.students=S.students.filter(x=>!x.demo); S.sel=null; S.stuSel=null; render(); toast("Örnek veriler silindi.");
 }
+function autoPanel(){
+  const L=window.__LOCAL; if(!L) return "";
+  if(!L.autoSupported) return `<div class="panel"><div class="panel-h"><h3>Otomatik yedek (iCloud / Google Drive)</h3></div>
+    <p class="hint" style="margin:0">Bu tarayıcı otomatik yedeği desteklemiyor. Defteri <b>Google Chrome</b> ile açarsanız her kayıt iCloud Drive veya Google Drive klasörünüzdeki bir dosyaya kendiliğinden yazılır. Safari'de yalnızca elle yedek alınabilir.</p></div>`;
+  const ai=L.autoInfo();
+  const st = ai.status==="ok" ? `<span class="pill ok">Açık</span> <span class="hint">“${esc(ai.name)}” · son yazım ${ai.last?new Date(ai.last).toLocaleString("tr-TR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—"}</span>`
+    : ai.status==="needs" ? `<span class="pill warn">İzin bekliyor</span> <span class="hint">“${esc(ai.name)}”</span>`
+    : ai.status==="error" ? `<span class="pill no">Yazılamadı</span> <span class="hint">Dosyayı yeniden seçin.</span>` : `<span class="pill draft">Kapalı</span>`;
+  return `<div class="panel"><div class="panel-h"><h3>Otomatik yedek (iCloud / Google Drive)</h3></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">${st}</div>
+    <p class="hint" style="margin-top:0">Bir kez dosya seçin: açılan pencerede sol taraftan <b>iCloud Drive</b> (veya Google Drive) klasörüne gidip <b>Kaydet</b>'e basın. Sonra her kayıtta o dosya kendiliğinden güncellenir ve buluta taşınır. Chrome bazen izin isterse “Her ziyarette izin ver”i seçin.</p>
+    <div class="actions">${ai.status==="needs"?`<button class="btn primary" data-act="resumeAuto">Otomatik yedeği sürdür</button>`:""}
+      <button class="btn ${ai.status==="off"?"primary":""}" data-act="chooseAuto">${ai.status==="off"?"Yedek dosyası seç ve başlat":"Farklı dosya seç"}</button>
+      ${ai.status!=="off"?`<button class="btn ghost" data-act="stopAuto">Kapat</button>`:""}</div></div>`;
+}
+if(window.__LOCAL) window.__LOCAL.onAuto = () => { render(); };
 async function doBackup(){
   if(!window.__LOCAL) return;
   const body=JSON.stringify({app:"omurga-defteri", version:1, created:new Date().toISOString(), docs:window.__LOCAL.dump()}, null, 1);
@@ -1105,7 +1155,8 @@ function renderSheet(){
     const lb=window.__LOCAL?.lastBackup();
     root.innerHTML = `<div class="sheet-bg" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true"><h3>Yedek</h3>
       <p class="hint">Bu dosya sürümünde tüm kayıtlar yalnızca bu bilgisayardaki tarayıcıda saklanır. Tarayıcı verileri temizlenirse kaybolabilir; düzenli yedek alın ve yedek dosyasını güvenli bir yerde saklayın.</p>
-      <div class="panel"><div class="panel-h"><h3>Yedeği indir</h3></div><p class="hint" style="margin-top:0">${S.patients.length} hasta, ${S.students.length} öğrenci, ${(S.customEx||[]).length} kendi egzersiziniz. Son yedek: ${lb?fmtDate(lb.slice(0,10)):"hiç alınmadı"}.</p>
+      ${autoPanel()}
+      <div class="panel"><div class="panel-h"><h3>Elle yedek indir</h3></div><p class="hint" style="margin-top:0">${S.patients.length} hasta, ${S.students.length} öğrenci, ${(S.customEx||[]).length} kendi egzersiziniz. Son yedek: ${lb?fmtDate(lb.slice(0,10)):"hiç alınmadı"}.</p>
         <button class="btn primary" data-act="doBackup">Yedeği indir</button></div>
       <div class="panel"><div class="panel-h"><h3>Yedekten geri yükle</h3></div><p class="hint" style="margin-top:0">Başka bir bilgisayara taşırken ya da veriler silindiyse kullanın. Bu bilgisayardaki mevcut kayıtların yerini alır.</p>
         <input id="f-restore" type="file" accept=".json,application/json">
@@ -1268,6 +1319,9 @@ document.addEventListener("click", e => {
     case "newCustomEx": S.sheet={type:"customEx"}; S.confirm=null; render(); break;
     case "loadDemo": loadDemo(); break;
     case "doBackup": doBackup(); break;
+    case "chooseAuto": window.__LOCAL.chooseAuto().then(st=>{ toast(st==="ok"?"Otomatik yedek açıldı.":"Dosyaya yazılamadı; tekrar deneyin."); }).catch(e=>{ if(e?.name!=="AbortError") toast("Dosya seçilemedi."); }); break;
+    case "resumeAuto": window.__LOCAL.resumeAuto().then(st=>toast(st==="ok"?"Otomatik yedek sürüyor.":"İzin verilmedi; yedek duraklatıldı.")); break;
+    case "stopAuto": window.__LOCAL.stopAuto().then(()=>toast("Otomatik yedek kapatıldı. Dosya yerinde duruyor.")); break;
     case "doRestore": { const docs=S.restoreData.docs; S.restoreData=null; S.sheet=null; S.sel=null; S.stuSel=null; window.__LOCAL.load(docs); render(); toast("Yedek yüklendi."); break; }
     case "noRestore": S.restoreData=null; renderSheet(); break;
     case "allSess": S.allSess = S.allSess===t.dataset.id ? null : t.dataset.id; render(); break;
